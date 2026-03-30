@@ -120,11 +120,12 @@ export async function handleNewsCommand(
 
   const targetChannelId = subcommand === "leak" ? leaksChannelId : newsChannelId;
 
-  const separator = "─────────────────────────";
+  // Heading in message content (renders big), embed for the body
+  const messageContent = `# ${config.emoji} ${titre}`;
 
   const embed = new EmbedBuilder()
     .setColor(config.color)
-    .setDescription(`**${titre}**\n${separator}\n\n${description}`)
+    .setDescription(description)
     .setFooter({ text: "7DS Origin" });
 
   if (image) embed.setImage(image);
@@ -148,7 +149,7 @@ export async function handleNewsCommand(
       return;
     }
 
-    await channel.send({ embeds });
+    await channel.send({ content: messageContent, embeds });
     await submit.reply({ content: `✅ ${config.label} publiée dans <#${targetChannelId}>.`, flags: 64 });
   } catch (err) {
     console.error("Failed to send news:", err);
