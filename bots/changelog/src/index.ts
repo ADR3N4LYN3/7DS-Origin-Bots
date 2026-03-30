@@ -14,7 +14,8 @@ import { buildNewsCommand, handleNewsCommand } from "./commands/news.js";
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN!;
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
 const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID!;
-const CHANNEL_ANNONCES = process.env.CHANNEL_ANNONCES!;
+const CHANNEL_SCRAPER = process.env.CHANNEL_SCRAPER!;
+const CHANNEL_NEWS = process.env.CHANNEL_NEWS!;
 const DISCORD_ADMIN_ROLE_ID = process.env.DISCORD_ADMIN_ROLE_ID!;
 const DISCORD_NEWS_SECRET = process.env.DISCORD_NEWS_SECRET!;
 const PORT = Number(process.env.PORT) || 3002;
@@ -33,7 +34,7 @@ client.on("interactionCreate", async (interaction: Interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== "news") return;
 
-  await handleNewsCommand(interaction, CHANNEL_ANNONCES, DISCORD_ADMIN_ROLE_ID);
+  await handleNewsCommand(interaction, CHANNEL_NEWS, DISCORD_ADMIN_ROLE_ID);
 });
 
 // ── Register slash commands ──────────────────────────────────────────
@@ -61,7 +62,7 @@ app.use(
   }),
 );
 
-app.use(createNewsRouter(client, CHANNEL_ANNONCES, DISCORD_NEWS_SECRET));
+app.use(createNewsRouter(client, CHANNEL_SCRAPER, DISCORD_NEWS_SECRET));
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", discord: client.isReady() });
