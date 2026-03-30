@@ -3,8 +3,6 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
   GuildMemberRoleManager,
-  PermissionFlagsBits,
-  type Client,
   type TextChannel,
 } from "discord.js";
 
@@ -18,7 +16,8 @@ export function buildNewsCommand() {
         .setDescription("Publier une mise à jour")
         .addStringOption((opt) => opt.setName("titre").setDescription("Titre de la mise à jour").setRequired(true))
         .addStringOption((opt) => opt.setName("description").setDescription("Description de la mise à jour").setRequired(true))
-        .addStringOption((opt) => opt.setName("lien").setDescription("Lien vers l'article").setRequired(false)),
+        .addStringOption((opt) => opt.setName("lien").setDescription("Lien vers l'article").setRequired(false))
+        .addStringOption((opt) => opt.setName("image").setDescription("URL de l'image").setRequired(false)),
     )
     .addSubcommand((sub) =>
       sub
@@ -26,7 +25,8 @@ export function buildNewsCommand() {
         .setDescription("Publier un patch note")
         .addStringOption((opt) => opt.setName("titre").setDescription("Titre du patch note").setRequired(true))
         .addStringOption((opt) => opt.setName("description").setDescription("Description du patch note").setRequired(true))
-        .addStringOption((opt) => opt.setName("lien").setDescription("Lien vers le patch note").setRequired(false)),
+        .addStringOption((opt) => opt.setName("lien").setDescription("Lien vers le patch note").setRequired(false))
+        .addStringOption((opt) => opt.setName("image").setDescription("URL de l'image").setRequired(false)),
     )
     .addSubcommand((sub) =>
       sub
@@ -41,10 +41,10 @@ export function buildNewsCommand() {
     );
 }
 
-const SUBCOMMAND_CONFIG: Record<string, { color: number; label: string }> = {
-  update:    { color: 0xc9a84c, label: "Mise à jour" },
-  patchnote: { color: 0x56a8f5, label: "Patch Note" },
-  leak:      { color: 0xffb938, label: "Leak" },
+const SUBCOMMAND_CONFIG: Record<string, { emoji: string; color: number; label: string }> = {
+  update:    { emoji: "🔧", color: 0xc9a84c, label: "Mise à jour" },
+  patchnote: { emoji: "📋", color: 0x56a8f5, label: "Patch Note" },
+  leak:      { emoji: "🔮", color: 0xffb938, label: "Leak" },
 };
 
 export async function handleNewsCommand(
@@ -76,45 +76,44 @@ export async function handleNewsCommand(
   const config = SUBCOMMAND_CONFIG[subcommand]!;
   const targetChannelId = subcommand === "leak" ? leaksChannelId : newsChannelId;
 
-  // Format description with block quote for better readability
-  const formattedDesc = description.split("\n").map((line) => `> ${line}`).join("\n");
+  // Build description parts
+  const descParts: string[] = [description];
+
+  if (lien) {
+    descParts.push(`▶ [Accéder à l'article](${lien})`);
+  }
 
   const embed = new EmbedBuilder()
     .setColor(config.color)
+    .setAuthor({ name: `${config.emoji} ${config.label}` })
     .setTitle(titre)
-    .setDescription(formattedDesc)
-    .setFooter({ text: `7DS Origin • ${config.label}` });
+    .setDescription(descParts.join("\n\n"))
+    .setFooter({ text: "7DS Origin" });
 
-  if (lien) {
-    embed.addFields({ name: "🔗 Lien", value: `[Voir l'article](${lien})` });
-  }
+  if (image) embed.setImage(image);
 
   const embeds: EmbedBuilder[] = [embed];
 
   if (subcommand === "leak") {
     const thumbnail = interaction.options.getString("thumbnail");
     if (thumbnail) embed.setThumbnail(thumbnail);
-    if (image) embed.setImage(image);
 
-    // Extra images as additional embeds (same color, no title)
     const image2 = interaction.options.getString("image2");
     const image3 = interaction.options.getString("image3");
 
-    for (const extraUrl of [image2, image3]) {
-      if (extraUrl) {
-        embeds.push(new EmbedBuilder().setURL(embed.data.url ?? "https://7dsorigin.app").setImage(extraUrl).setColor(config.color));
-      }
-    }
-
-    // Set URL on main embed so Discord groups the images together
-    if ((image2 || image3) && !embed.data.url) {
+    if (image2 || image3) {
       embed.setURL("https://7dsorigin.app");
-      for (const e of embeds.slice(1)) {
-        e.setURL("https://7dsorigin.app");
+      for (const extraUrl of [image2, image3]) {
+        if (extraUrl) {
+          embeds.push(
+            new EmbedBuilder()
+              .setURL("https://7dsorigin.app")
+              .setImage(extraUrl)
+              .setColor(config.color),
+          );
+        }
       }
     }
-  } else {
-    if (image) embed.setImage(image);
   }
 
   try {
