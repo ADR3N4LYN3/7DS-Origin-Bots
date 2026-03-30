@@ -98,23 +98,24 @@ app.post("/webhook/code-approved", async (req, res) => {
   const { code, rewardsFr, rewardsEn, expiresAt } =
     req.body as CodeApprovedPayload;
 
-  if (!code || !rewardsFr || !rewardsEn || !expiresAt) {
+  if (!code || !rewardsFr || !rewardsEn) {
     res
       .status(400)
-      .json({ error: "Missing fields: code, rewardsFr, rewardsEn, expiresAt" });
+      .json({ error: "Missing fields: code, rewardsFr, rewardsEn" });
     return;
   }
 
   // ── Build Discord embed ─────────────────────────────────────────────
-  const expDate = new Date(expiresAt);
-  const discordTimestamp = `<t:${Math.floor(expDate.getTime() / 1000)}:F>`;
+  const discordTimestamp = expiresAt
+    ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:F>`
+    : null;
 
   const embed = new EmbedBuilder()
     .setColor(0xf5a623)
     .setTitle("🎁 Nouveau Code Promo / New Promo Code")
     .addFields(
       { name: "Code", value: `\`${code}\``, inline: true },
-      { name: "Expiration", value: discordTimestamp, inline: true },
+      ...(discordTimestamp ? [{ name: "Expiration", value: discordTimestamp, inline: true }] : []),
       { name: "\u200B", value: "\u200B" },
       { name: "🇫🇷 Récompenses", value: rewardsFr },
       { name: "🇬🇧 Rewards", value: rewardsEn },
