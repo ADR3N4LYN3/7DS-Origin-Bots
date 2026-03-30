@@ -6,7 +6,9 @@ settings:
 
 importers:
 
-  .:
+  .: {}
+
+  bots/codes-promo:
     dependencies:
       discord.js:
         specifier: ^14.25.1
