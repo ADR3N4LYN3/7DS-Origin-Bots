@@ -9,6 +9,8 @@ import {
 } from "discord.js";
 import express from "express";
 import crypto from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -17,7 +19,10 @@ import crypto from "node:crypto";
 const DISCORD_BOT_TOKEN = requireEnv("DISCORD_BOT_TOKEN");
 const DISCORD_CHANNEL_ID = requireEnv("DISCORD_CHANNEL_ID");
 const WEBHOOK_SECRET = requireEnv("WEBHOOK_SECRET");
+const PUBLIC_URL = requireEnv("PUBLIC_URL");
 const PORT = Number(process.env.PORT ?? 3001);
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -72,23 +77,28 @@ function buildEmbed(payload: CodeApprovedPayload) {
   const { code, rewardsFr, rewardsEn, expiresAt } = payload;
 
   const discordTimestamp = expiresAt
-    ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:F>`
+    ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>`
     : null;
 
   const embed = new EmbedBuilder()
-    .setColor(0xf5a623)
-    .setTitle("🎁 Nouveau Code Promo / New Promo Code")
-    .setThumbnail("https://7dsorigin.app/icon-192x192.png")
+    .setColor(0xc8922a)
+    .setAuthor({
+      name: "7DS Origin",
+      iconURL: "https://7dsorigin.app/icon-192x192.png",
+      url: "https://7dsorigin.app",
+    })
+    .setTitle("🎁 Nouveau Code Promo")
+    .setImage(`${PUBLIC_URL}/public/Banner.png`)
     .addFields(
       { name: "📋 Code", value: `\`\`\`${code}\`\`\`` },
       ...(discordTimestamp
-        ? [{ name: "⏰ Expiration", value: discordTimestamp, inline: true }]
+        ? [{ name: "⏰ Expire", value: discordTimestamp, inline: true }]
         : []),
       { name: "\u200B", value: "\u200B" },
       { name: "🇫🇷 Récompenses", value: rewardsFr, inline: true },
       { name: "🇬🇧 Rewards", value: rewardsEn, inline: true },
     )
-    .setFooter({ text: "7DS Origin" })
+    .setFooter({ text: "7DS Origin • Codes Promo" })
     .setTimestamp();
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -107,6 +117,9 @@ function buildEmbed(payload: CodeApprovedPayload) {
 // ---------------------------------------------------------------------------
 
 const app = express();
+
+// Serve static files (banner, etc.)
+app.use("/public", express.static(path.join(__dirname, "..", "public")));
 
 // Parse JSON but keep the raw body for HMAC verification
 app.use(
