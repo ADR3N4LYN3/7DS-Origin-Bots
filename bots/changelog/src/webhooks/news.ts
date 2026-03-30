@@ -6,10 +6,11 @@ import { buildNewsEmbed } from "../embeds/news.js";
 interface NewsPublishedPayload {
   id: number;
   title: string;
+  content?: string | null;
   category: string;
   lang: string;
   url: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
   publishedAt: string;
 }
 

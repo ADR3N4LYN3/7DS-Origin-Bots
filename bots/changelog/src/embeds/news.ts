@@ -3,10 +3,11 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "disc
 interface NewsPayload {
   id: number;
   title: string;
+  content?: string | null;
   category: string;
   lang: string;
   url: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
   publishedAt: string;
 }
 
@@ -73,15 +74,23 @@ export function buildNewsEmbed(payload: NewsPayload) {
     year: "numeric",
   });
 
+  const content = payload.content ? decodeHtmlEntities(payload.content) : null;
+
+  const descriptionParts: string[] = [];
+  if (content) {
+    descriptionParts.push(content);
+  }
+  descriptionParts.push(
+    `Veuillez consulter notre site officiel pour plus d'informations.`,
+    `▶ [Accéder au site officiel de **The Seven Deadly Sins: Origin**](${payload.url})`,
+  );
+
   const embed = new EmbedBuilder()
     .setColor(style.color)
-    .setTitle(`${style.emoji} ${title}`)
+    .setAuthor({ name: `${style.emoji} ${payload.category} · ${payload.lang.toUpperCase()}` })
+    .setTitle(title)
     .setURL(payload.url)
-    .setDescription(
-      `> **${payload.category}** · ${payload.lang.toUpperCase()}\n\n` +
-      `Veuillez consulter le site officiel pour plus d'informations.\n` +
-      `▸ [Accéder au site officiel de **7DS Origin**](${payload.url})`,
-    )
+    .setDescription(descriptionParts.join("\n\n"))
     .setFooter({ text: `7DS Origin • ${footerDate}` });
 
   if (payload.imageUrl) {
