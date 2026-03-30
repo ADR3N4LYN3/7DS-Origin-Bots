@@ -1,5 +1,6 @@
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   Client,
@@ -19,10 +20,10 @@ import { fileURLToPath } from "node:url";
 const DISCORD_BOT_TOKEN = requireEnv("DISCORD_BOT_TOKEN");
 const DISCORD_CHANNEL_ID = requireEnv("DISCORD_CHANNEL_ID");
 const WEBHOOK_SECRET = requireEnv("WEBHOOK_SECRET");
-const PUBLIC_URL = requireEnv("PUBLIC_URL");
 const PORT = Number(process.env.PORT ?? 3001);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const BANNER_PATH = path.join(__dirname, "..", "public", "Banner.png");
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -73,12 +74,14 @@ function verifySignature(rawBody: Buffer, signature: string): boolean {
 // Embed builder
 // ---------------------------------------------------------------------------
 
-function buildEmbed(payload: CodeApprovedPayload) {
+function buildMessage(payload: CodeApprovedPayload) {
   const { code, rewardsFr, rewardsEn, expiresAt } = payload;
 
-  const discordTimestamp = expiresAt
-    ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>`
-    : null;
+  const banner = new AttachmentBuilder(BANNER_PATH, { name: "banner.png" });
+
+  const expireField = expiresAt
+    ? `\n⏰ Expire <t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>`
+    : "";
 
   const embed = new EmbedBuilder()
     .setColor(0xc8922a)
@@ -87,14 +90,12 @@ function buildEmbed(payload: CodeApprovedPayload) {
       iconURL: "https://7dsorigin.app/icon-192x192.png",
       url: "https://7dsorigin.app",
     })
-    .setTitle("🎁 Nouveau Code Promo")
-    .setImage(`${PUBLIC_URL}/public/Banner.png`)
+    .setTitle("🎁  Nouveau Code Promo / New Promo Code")
+    .setDescription(
+      `**\`${code}\`**${expireField}`
+    )
+    .setImage("attachment://banner.png")
     .addFields(
-      { name: "📋 Code", value: `\`\`\`${code}\`\`\`` },
-      ...(discordTimestamp
-        ? [{ name: "⏰ Expire", value: discordTimestamp, inline: true }]
-        : []),
-      { name: "\u200B", value: "\u200B" },
       { name: "🇫🇷 Récompenses", value: rewardsFr, inline: true },
       { name: "🇬🇧 Rewards", value: rewardsEn, inline: true },
     )
@@ -109,7 +110,7 @@ function buildEmbed(payload: CodeApprovedPayload) {
       .setEmoji("🎟️"),
   );
 
-  return { embed, row };
+  return { embed, row, files: [banner] };
 }
 
 // ---------------------------------------------------------------------------
@@ -117,9 +118,6 @@ function buildEmbed(payload: CodeApprovedPayload) {
 // ---------------------------------------------------------------------------
 
 const app = express();
-
-// Serve static files (banner, etc.)
-app.use("/public", express.static(path.join(__dirname, "..", "public")));
 
 // Parse JSON but keep the raw body for HMAC verification
 app.use(
@@ -156,10 +154,9 @@ app.post("/webhook/code-approved", async (req, res) => {
     return;
   }
 
-  // ── Build & send Discord embed ──────────────────────────────────────
-  const { embed, row } = buildEmbed({ code, rewardsFr, rewardsEn, expiresAt });
+  // ── Build & send Discord message ────────────────────────────────────
+  const { embed, row, files } = buildMessage({ code, rewardsFr, rewardsEn, expiresAt });
 
-  // ── Send to Discord ─────────────────────────────────────────────────
   try {
     const channel = (await client.channels.fetch(
       DISCORD_CHANNEL_ID,
@@ -171,7 +168,7 @@ app.post("/webhook/code-approved", async (req, res) => {
       return;
     }
 
-    await channel.send({ embeds: [embed], components: [row] });
+    await channel.send({ embeds: [embed], components: [row], files });
     console.log(`Promo code "${code}" posted to #${channel.name}`);
     res.status(200).json({ ok: true });
   } catch (err) {
@@ -192,14 +189,14 @@ app.get("/test-embed", async (_req, res) => {
       return;
     }
 
-    const { embed, row } = buildEmbed({
+    const { embed, row, files } = buildMessage({
       code: "TEST7DS2026",
       rewardsFr: "100 Diamants\n50 Stamina\n1 SSR Ticket",
       rewardsEn: "100 Diamonds\n50 Stamina\n1 SSR Ticket",
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
-    await channel.send({ embeds: [embed], components: [row] });
+    await channel.send({ embeds: [embed], components: [row], files });
     res.json({ ok: true, message: "Test embed sent" });
   } catch (err) {
     console.error("Test embed failed:", err);
