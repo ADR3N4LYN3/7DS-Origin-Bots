@@ -120,11 +120,11 @@ export async function handleNewsCommand(
 
   const targetChannelId = subcommand === "leak" ? leaksChannelId : newsChannelId;
 
+  const separator = "─────────────────────────";
+
   const embed = new EmbedBuilder()
     .setColor(config.color)
-    .setAuthor({ name: `${config.emoji} ${config.label}` })
-    .setTitle(titre)
-    .setDescription(description)
+    .setDescription(`**${titre}**\n${separator}\n\n${description}`)
     .setFooter({ text: "7DS Origin" });
 
   if (image) embed.setImage(image);
