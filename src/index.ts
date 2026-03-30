@@ -94,18 +94,14 @@ function buildMessage(payload: CodeApprovedPayload) {
       url: "https://7dsorigin.app",
     })
     .setTitle("🎁 Nouveau Code Promo")
-    .setThumbnail("attachment://banner.png")
     .setDescription(
-      [
-        `\`\`\`fix\n${code}\`\`\``,
-        expireLine,
-        `━━━━━━━━━━━━━━━━━━━━━━`,
-      ].join("\n")
+      `\`\`\`fix\n${code}\`\`\`${expireLine}`
     )
     .addFields(
       { name: "🇫🇷 Récompenses", value: rewardsFr, inline: true },
       { name: "🇬🇧 Rewards", value: rewardsEn, inline: true },
     )
+    .setImage("attachment://banner.png")
     .setFooter({ text: "7DS Origin • Codes Promo" })
     .setTimestamp();
 
