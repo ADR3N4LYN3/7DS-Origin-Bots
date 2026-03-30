@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const DISCORD_BOT_TOKEN = requireEnv("DISCORD_BOT_TOKEN");
 const DISCORD_CHANNEL_ID = requireEnv("DISCORD_CHANNEL_ID");
+const DISCORD_ROLE_ID = requireEnv("DISCORD_ROLE_ID");
 const WEBHOOK_SECRET = requireEnv("WEBHOOK_SECRET");
 const PORT = Number(process.env.PORT ?? 3001);
 
@@ -170,7 +171,7 @@ app.post("/webhook/code-approved", async (req, res) => {
       return;
     }
 
-    await channel.send({ embeds: [embed], components: [row], files });
+    await channel.send({ content: `<@&${DISCORD_ROLE_ID}>`, embeds: [embed], components: [row], files });
     console.log(`Promo code "${code}" posted to #${channel.name}`);
     res.status(200).json({ ok: true });
   } catch (err) {
@@ -198,7 +199,7 @@ app.get("/test-embed", async (_req, res) => {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     });
 
-    await channel.send({ embeds: [embed], components: [row], files });
+    await channel.send({ content: `<@&${DISCORD_ROLE_ID}>`, embeds: [embed], components: [row], files });
     res.json({ ok: true, message: "Test embed sent" });
   } catch (err) {
     console.error("Test embed failed:", err);
