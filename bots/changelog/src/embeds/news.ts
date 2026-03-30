@@ -40,8 +40,31 @@ const CATEGORY_STYLE: Record<string, { emoji: string; color: number; badge: stri
 
 const DEFAULT_STYLE = { emoji: "📄", color: 0x95a5a6, badge: "" };
 
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&apos;": "'",
+  "&lsquo;": "\u2018", "&rsquo;": "\u2019", "&ldquo;": "\u201C", "&rdquo;": "\u201D",
+  "&ndash;": "\u2013", "&mdash;": "\u2014", "&hellip;": "\u2026", "&nbsp;": " ",
+  "&Eacute;": "É", "&eacute;": "é", "&Egrave;": "È", "&egrave;": "è",
+  "&Ecirc;": "Ê", "&ecirc;": "ê", "&Agrave;": "À", "&agrave;": "à",
+  "&Acirc;": "Â", "&acirc;": "â", "&Ocirc;": "Ô", "&ocirc;": "ô",
+  "&Ucirc;": "Û", "&ucirc;": "û", "&Ugrave;": "Ù", "&ugrave;": "ù",
+  "&Ccedil;": "Ç", "&ccedil;": "ç", "&Iuml;": "Ï", "&iuml;": "ï",
+};
+
+function decodeHtmlEntities(text: string): string {
+  let decoded = text;
+  for (const [entity, char] of Object.entries(HTML_ENTITIES)) {
+    decoded = decoded.replaceAll(entity, char);
+  }
+  // Handle numeric entities like &#233; and &#x00E9;
+  decoded = decoded.replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)));
+  decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)));
+  return decoded;
+}
+
 export function buildNewsEmbed(payload: NewsPayload) {
   const style = CATEGORY_STYLE[payload.category] ?? DEFAULT_STYLE;
+  const title = decodeHtmlEntities(payload.title);
 
   const publishedDate = new Date(payload.publishedAt);
   const footerDate = publishedDate.toLocaleDateString("fr-FR", {
@@ -52,7 +75,7 @@ export function buildNewsEmbed(payload: NewsPayload) {
 
   const embed = new EmbedBuilder()
     .setColor(style.color)
-    .setTitle(`${style.emoji} ${payload.title}`)
+    .setTitle(`${style.emoji} ${title}`)
     .setURL(payload.url)
     .setDescription(
       `> **${payload.category}** · ${payload.lang.toUpperCase()}\n\n` +
