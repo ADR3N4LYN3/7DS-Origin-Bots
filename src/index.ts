@@ -24,6 +24,7 @@ const PORT = Number(process.env.PORT ?? 3001);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BANNER_PATH = path.join(__dirname, "..", "public", "Banner.png");
+const ICON_PATH = path.join(__dirname, "..", "public", "icon-192.png");
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -78,6 +79,7 @@ function buildMessage(payload: CodeApprovedPayload) {
   const { code, rewardsFr, rewardsEn, expiresAt } = payload;
 
   const banner = new AttachmentBuilder(BANNER_PATH, { name: "banner.png" });
+  const icon = new AttachmentBuilder(ICON_PATH, { name: "icon.png" });
 
   const expireField = expiresAt
     ? `\n⏰ Expire <t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>`
@@ -87,7 +89,7 @@ function buildMessage(payload: CodeApprovedPayload) {
     .setColor(0xc8922a)
     .setAuthor({
       name: "7DS Origin",
-      iconURL: "https://7dsorigin.app/icon-192x192.png",
+      iconURL: "attachment://icon.png",
       url: "https://7dsorigin.app",
     })
     .setTitle("🎁  Nouveau Code Promo / New Promo Code")
@@ -110,7 +112,7 @@ function buildMessage(payload: CodeApprovedPayload) {
       .setEmoji("🎟️"),
   );
 
-  return { embed, row, files: [banner] };
+  return { embed, row, files: [banner, icon] };
 }
 
 // ---------------------------------------------------------------------------
