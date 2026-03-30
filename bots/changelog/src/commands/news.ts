@@ -46,7 +46,8 @@ const SUBCOMMAND_CONFIG: Record<string, { color: number; label: string }> = {
 
 export async function handleNewsCommand(
   interaction: ChatInputCommandInteraction,
-  channelId: string,
+  newsChannelId: string,
+  leaksChannelId: string,
   adminRoleId: string,
 ) {
   const subcommand = interaction.options.getSubcommand();
@@ -70,6 +71,7 @@ export async function handleNewsCommand(
   const image = interaction.options.getString("image");
 
   const config = SUBCOMMAND_CONFIG[subcommand]!;
+  const targetChannelId = subcommand === "leak" ? leaksChannelId : newsChannelId;
 
   const embed = new EmbedBuilder()
     .setColor(config.color)
@@ -87,14 +89,14 @@ export async function handleNewsCommand(
   }
 
   try {
-    const channel = (await interaction.client.channels.fetch(channelId)) as TextChannel | null;
+    const channel = (await interaction.client.channels.fetch(targetChannelId)) as TextChannel | null;
     if (!channel) {
-      await interaction.reply({ content: "❌ Channel annonces introuvable.", flags: 64 });
+      await interaction.reply({ content: "❌ Channel introuvable.", flags: 64 });
       return;
     }
 
     await channel.send({ embeds: [embed] });
-    await interaction.reply({ content: `✅ ${config.label} publiée dans <#${channelId}>.`, flags: 64 });
+    await interaction.reply({ content: `✅ ${config.label} publiée dans <#${targetChannelId}>.`, flags: 64 });
   } catch (err) {
     console.error("Failed to send news:", err);
     await interaction.reply({ content: "❌ Erreur lors de l'envoi du message.", flags: 64 });
