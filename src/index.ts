@@ -82,8 +82,8 @@ function buildMessage(payload: CodeApprovedPayload) {
   const banner = new AttachmentBuilder(BANNER_PATH, { name: "banner.png" });
   const icon = new AttachmentBuilder(ICON_PATH, { name: "icon.png" });
 
-  const expireField = expiresAt
-    ? `\n⏰ Expire <t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>`
+  const expireLine = expiresAt
+    ? `⏰ Expire <t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>\n`
     : "";
 
   const embed = new EmbedBuilder()
@@ -93,11 +93,15 @@ function buildMessage(payload: CodeApprovedPayload) {
       iconURL: "attachment://icon.png",
       url: "https://7dsorigin.app",
     })
-    .setTitle("🎁  Nouveau Code Promo / New Promo Code")
+    .setTitle("🎁 Nouveau Code Promo")
+    .setThumbnail("attachment://banner.png")
     .setDescription(
-      `\`\`\`${code}\`\`\`${expireField}`
+      [
+        `\`\`\`fix\n${code}\`\`\``,
+        expireLine,
+        `━━━━━━━━━━━━━━━━━━━━━━`,
+      ].join("\n")
     )
-    .setImage("attachment://banner.png")
     .addFields(
       { name: "🇫🇷 Récompenses", value: rewardsFr, inline: true },
       { name: "🇬🇧 Rewards", value: rewardsEn, inline: true },
