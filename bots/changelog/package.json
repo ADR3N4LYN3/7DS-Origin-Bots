@@ -1,0 +1,21 @@
+{
+  "name": "@7ds-bots/changelog",
+  "version": "1.0.0",
+  "description": "Discord bot for 7DS Origin news & changelog notifications",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx --env-file=.env src/index.ts",
+    "build": "tsc",
+    "start": "node --env-file=.env dist/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}
