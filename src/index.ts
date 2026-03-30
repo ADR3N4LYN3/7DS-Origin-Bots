@@ -83,8 +83,11 @@ function buildMessage(payload: CodeApprovedPayload) {
   const icon = new AttachmentBuilder(ICON_PATH, { name: "icon.png" });
 
   const expireLine = expiresAt
-    ? `⏰ Expire <t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>\n`
+    ? `\n⏰ Expire <t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:R>`
     : "";
+
+  const formatRewards = (rewards: string) =>
+    rewards.split("\n").map((r) => `> ${r}`).join("\n");
 
   const embed = new EmbedBuilder()
     .setColor(0xc8922a)
@@ -98,8 +101,9 @@ function buildMessage(payload: CodeApprovedPayload) {
       `\`\`\`fix\n${code}\`\`\`${expireLine}`
     )
     .addFields(
-      { name: "🇫🇷 Récompenses", value: rewardsFr, inline: true },
-      { name: "🇬🇧 Rewards", value: rewardsEn, inline: true },
+      { name: "\u200B", value: "\u200B" },
+      { name: "🇫🇷 Récompenses", value: formatRewards(rewardsFr), inline: true },
+      { name: "🇬🇧 Rewards", value: formatRewards(rewardsEn), inline: true },
     )
     .setImage("attachment://banner.png")
     .setFooter({ text: "7DS Origin • Codes Promo" })
