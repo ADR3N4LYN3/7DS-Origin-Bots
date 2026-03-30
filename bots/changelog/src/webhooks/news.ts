@@ -9,6 +9,7 @@ interface NewsPublishedPayload {
   category: string;
   lang: string;
   url: string;
+  imageUrl?: string;
   publishedAt: string;
 }
 

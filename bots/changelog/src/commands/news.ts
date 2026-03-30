@@ -34,7 +34,10 @@ export function buildNewsCommand() {
         .setDescription("Publier un leak (admin uniquement)")
         .addStringOption((opt) => opt.setName("titre").setDescription("Titre du leak").setRequired(true))
         .addStringOption((opt) => opt.setName("description").setDescription("Description du leak").setRequired(true))
-        .addStringOption((opt) => opt.setName("image").setDescription("URL de l'image").setRequired(false)),
+        .addStringOption((opt) => opt.setName("image").setDescription("URL de l'image principale").setRequired(false))
+        .addStringOption((opt) => opt.setName("image2").setDescription("URL d'une 2e image").setRequired(false))
+        .addStringOption((opt) => opt.setName("image3").setDescription("URL d'une 3e image").setRequired(false))
+        .addStringOption((opt) => opt.setName("thumbnail").setDescription("URL du thumbnail (petite image)").setRequired(false)),
     );
 }
 
@@ -73,19 +76,45 @@ export async function handleNewsCommand(
   const config = SUBCOMMAND_CONFIG[subcommand]!;
   const targetChannelId = subcommand === "leak" ? leaksChannelId : newsChannelId;
 
+  // Format description with block quote for better readability
+  const formattedDesc = description.split("\n").map((line) => `> ${line}`).join("\n");
+
   const embed = new EmbedBuilder()
     .setColor(config.color)
     .setTitle(titre)
-    .setDescription(description)
-    .setFooter({ text: `7DS Origin • ${config.label}` })
-    .setTimestamp();
+    .setDescription(formattedDesc)
+    .setFooter({ text: `7DS Origin • ${config.label}` });
 
   if (lien) {
     embed.addFields({ name: "🔗 Lien", value: `[Voir l'article](${lien})` });
   }
 
-  if (image && subcommand === "leak") {
-    embed.setImage(image);
+  const embeds: EmbedBuilder[] = [embed];
+
+  if (subcommand === "leak") {
+    const thumbnail = interaction.options.getString("thumbnail");
+    if (thumbnail) embed.setThumbnail(thumbnail);
+    if (image) embed.setImage(image);
+
+    // Extra images as additional embeds (same color, no title)
+    const image2 = interaction.options.getString("image2");
+    const image3 = interaction.options.getString("image3");
+
+    for (const extraUrl of [image2, image3]) {
+      if (extraUrl) {
+        embeds.push(new EmbedBuilder().setURL(embed.data.url ?? "https://7dsorigin.app").setImage(extraUrl).setColor(config.color));
+      }
+    }
+
+    // Set URL on main embed so Discord groups the images together
+    if ((image2 || image3) && !embed.data.url) {
+      embed.setURL("https://7dsorigin.app");
+      for (const e of embeds.slice(1)) {
+        e.setURL("https://7dsorigin.app");
+      }
+    }
+  } else {
+    if (image) embed.setImage(image);
   }
 
   try {
@@ -95,7 +124,7 @@ export async function handleNewsCommand(
       return;
     }
 
-    await channel.send({ embeds: [embed] });
+    await channel.send({ embeds });
     await interaction.reply({ content: `✅ ${config.label} publiée dans <#${targetChannelId}>.`, flags: 64 });
   } catch (err) {
     console.error("Failed to send news:", err);

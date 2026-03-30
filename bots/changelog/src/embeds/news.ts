@@ -6,6 +6,7 @@ interface NewsPayload {
   category: string;
   lang: string;
   url: string;
+  imageUrl?: string;
   publishedAt: string;
 }
 
@@ -58,10 +59,11 @@ export function buildNewsEmbed(payload: NewsPayload) {
       `Veuillez consulter le site officiel pour plus d'informations.\n` +
       `▸ [Accéder au site officiel de **7DS Origin**](${payload.url})`,
     )
-    .setFooter({ text: `7DS Origin • ${footerDate}` })
-    .setTimestamp(publishedDate);
+    .setFooter({ text: `7DS Origin • ${footerDate}` });
 
-  if (style.badge) {
+  if (payload.imageUrl) {
+    embed.setImage(payload.imageUrl);
+  } else if (style.badge) {
     embed.setImage(style.badge);
   }
 
