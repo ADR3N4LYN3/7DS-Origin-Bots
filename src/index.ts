@@ -65,6 +65,44 @@ function verifySignature(rawBody: Buffer, signature: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Embed builder
+// ---------------------------------------------------------------------------
+
+function buildEmbed(payload: CodeApprovedPayload) {
+  const { code, rewardsFr, rewardsEn, expiresAt } = payload;
+
+  const discordTimestamp = expiresAt
+    ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:F>`
+    : null;
+
+  const embed = new EmbedBuilder()
+    .setColor(0xf5a623)
+    .setTitle("🎁 Nouveau Code Promo / New Promo Code")
+    .setThumbnail("https://7dsorigin.app/icon-192x192.png")
+    .addFields(
+      { name: "📋 Code", value: `\`\`\`${code}\`\`\`` },
+      ...(discordTimestamp
+        ? [{ name: "⏰ Expiration", value: discordTimestamp, inline: true }]
+        : []),
+      { name: "\u200B", value: "\u200B" },
+      { name: "🇫🇷 Récompenses", value: rewardsFr, inline: true },
+      { name: "🇬🇧 Rewards", value: rewardsEn, inline: true },
+    )
+    .setFooter({ text: "7DS Origin" })
+    .setTimestamp();
+
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setLabel("Utiliser le code")
+      .setURL("https://coupon.netmarble.com/nanaori")
+      .setStyle(ButtonStyle.Link)
+      .setEmoji("🎟️"),
+  );
+
+  return { embed, row };
+}
+
+// ---------------------------------------------------------------------------
 // Express HTTP server
 // ---------------------------------------------------------------------------
 
@@ -105,30 +143,8 @@ app.post("/webhook/code-approved", async (req, res) => {
     return;
   }
 
-  // ── Build Discord embed ─────────────────────────────────────────────
-  const discordTimestamp = expiresAt
-    ? `<t:${Math.floor(new Date(expiresAt).getTime() / 1000)}:F>`
-    : null;
-
-  const embed = new EmbedBuilder()
-    .setColor(0xf5a623)
-    .setTitle("🎁 Nouveau Code Promo / New Promo Code")
-    .addFields(
-      { name: "Code", value: `\`${code}\``, inline: true },
-      ...(discordTimestamp ? [{ name: "Expiration", value: discordTimestamp, inline: true }] : []),
-      { name: "\u200B", value: "\u200B" },
-      { name: "🇫🇷 Récompenses", value: rewardsFr },
-      { name: "🇬🇧 Rewards", value: rewardsEn },
-    )
-    .setFooter({ text: "7DS Origin — Code Promo" })
-    .setTimestamp();
-
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setLabel("Redeem")
-      .setURL("https://coupon.netmarble.com/nanaori")
-      .setStyle(ButtonStyle.Link),
-  );
+  // ── Build & send Discord embed ──────────────────────────────────────
+  const { embed, row } = buildEmbed({ code, rewardsFr, rewardsEn, expiresAt });
 
   // ── Send to Discord ─────────────────────────────────────────────────
   try {
@@ -148,6 +164,33 @@ app.post("/webhook/code-approved", async (req, res) => {
   } catch (err) {
     console.error("Failed to send Discord message:", err);
     res.status(500).json({ error: "Failed to post to Discord" });
+  }
+});
+
+// ── Test endpoint (sends a fake embed to verify design) ───────────────
+app.get("/test-embed", async (_req, res) => {
+  try {
+    const channel = (await client.channels.fetch(
+      DISCORD_CHANNEL_ID,
+    )) as TextChannel | null;
+
+    if (!channel) {
+      res.status(500).json({ error: "Discord channel not found" });
+      return;
+    }
+
+    const { embed, row } = buildEmbed({
+      code: "TEST7DS2026",
+      rewardsFr: "100 Diamants\n50 Stamina\n1 SSR Ticket",
+      rewardsEn: "100 Diamonds\n50 Stamina\n1 SSR Ticket",
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    await channel.send({ embeds: [embed], components: [row] });
+    res.json({ ok: true, message: "Test embed sent" });
+  } catch (err) {
+    console.error("Test embed failed:", err);
+    res.status(500).json({ error: "Failed to send test embed" });
   }
 });
 
