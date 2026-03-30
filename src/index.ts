@@ -34,7 +34,7 @@ function requireEnv(name: string): string {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.once("ready", (c) => {
+client.once("clientReady", (c) => {
   console.log(`Discord bot ready — logged in as ${c.user.tag}`);
 });
 
