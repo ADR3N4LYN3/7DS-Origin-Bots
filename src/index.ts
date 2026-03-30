@@ -94,7 +94,7 @@ function buildMessage(payload: CodeApprovedPayload) {
     })
     .setTitle("🎁  Nouveau Code Promo / New Promo Code")
     .setDescription(
-      `**\`${code}\`**${expireField}`
+      `\`\`\`${code}\`\`\`${expireField}`
     )
     .setImage("attachment://banner.png")
     .addFields(
