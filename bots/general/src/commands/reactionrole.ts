@@ -124,6 +124,8 @@ export async function handleReactionRoleCommand(
       return;
     }
 
+    await submit.deferReply({ flags: 64 });
+
     try {
       const chunks = splitContent(original.content || "");
       let lastMsg;
@@ -157,10 +159,10 @@ export async function handleReactionRoleCommand(
         saveReactionRoles(data);
       }
 
-      await submit.reply({ content: `✅ Reaction roles configurés dans <#${targetChannel.id}>.`, flags: 64 });
+      await submit.editReply({ content: `✅ Reaction roles configurés dans <#${targetChannel.id}>.` });
     } catch (err) {
       console.error("Failed to setup reaction roles:", err);
-      await submit.reply({ content: "❌ Erreur lors de la configuration.", flags: 64 });
+      await submit.editReply({ content: "❌ Erreur lors de la configuration." });
     }
 
     return;
@@ -222,6 +224,8 @@ export async function handleReactionRoleCommand(
     return;
   }
 
+  await submit.deferReply({ flags: 64 });
+
   const embed = new EmbedBuilder()
     .setColor(0x57f287)
     .setDescription(description)
@@ -240,10 +244,10 @@ export async function handleReactionRoleCommand(
     data.push({ messageId: msg.id, channelId: channel.id, mappings });
     saveReactionRoles(data);
 
-    await submit.reply({ content: "✅ Reaction roles configurés.", flags: 64 });
+    await submit.editReply({ content: "✅ Reaction roles configurés." });
   } catch (err) {
     console.error("Failed to setup reaction roles:", err);
-    await submit.reply({ content: "❌ Erreur lors de la configuration des reaction roles.", flags: 64 });
+    await submit.editReply({ content: "❌ Erreur lors de la configuration des reaction roles." });
   }
 }
 
