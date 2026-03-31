@@ -21,7 +21,10 @@ const DISCORD_TOKEN = process.env.DISCORD_TOKEN!;
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
 const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID!;
 const CHANNEL_WELCOME = process.env.CHANNEL_WELCOME!;
+const CHANNEL_RULES = process.env.CHANNEL_RULES || undefined;
+const CHANNEL_ROLES = process.env.CHANNEL_ROLES || undefined;
 const DISCORD_ADMIN_ROLE_ID = process.env.DISCORD_ADMIN_ROLE_ID!;
+const WELCOME_BANNER_URL = process.env.WELCOME_BANNER_URL || undefined;
 
 // ── Discord client ───────────────────────────────────────────────────
 
@@ -44,8 +47,15 @@ client.once("clientReady", (c) => {
 
 // ── Welcome event ───────────────────────────────────────────────────
 
+const welcomeConfig = {
+  welcomeChannelId: CHANNEL_WELCOME,
+  rulesChannelId: CHANNEL_RULES,
+  rolesChannelId: CHANNEL_ROLES,
+  bannerUrl: WELCOME_BANNER_URL,
+};
+
 client.on("guildMemberAdd", (member) => {
-  handleGuildMemberAdd(member, CHANNEL_WELCOME);
+  handleGuildMemberAdd(member, welcomeConfig);
 });
 
 // ── Reaction roles ──────────────────────────────────────────────────
@@ -103,7 +113,7 @@ const COMMAND_HANDLERS: Record<string, (interaction: any) => Promise<void>> = {
   sondage: (i) => handleSondageCommand(i),
   userinfo: (i) => handleUserinfoCommand(i),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
-  testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, CHANNEL_WELCOME),
+  testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, welcomeConfig),
 };
 
 client.on("interactionCreate", async (interaction: Interaction) => {

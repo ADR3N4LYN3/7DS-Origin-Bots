@@ -3,7 +3,7 @@ import {
   ChatInputCommandInteraction,
   GuildMemberRoleManager,
 } from "discord.js";
-import { handleGuildMemberAdd } from "../events/welcome.js";
+import { handleGuildMemberAdd, type WelcomeConfig } from "../events/welcome.js";
 
 export function buildTestWelcomeCommand() {
   return new SlashCommandBuilder()
@@ -14,7 +14,7 @@ export function buildTestWelcomeCommand() {
 export async function handleTestWelcomeCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
-  welcomeChannelId: string,
+  welcomeConfig: WelcomeConfig,
 ) {
   const roles = interaction.member?.roles;
   const hasAdmin =
@@ -33,6 +33,6 @@ export async function handleTestWelcomeCommand(
     return;
   }
 
-  await handleGuildMemberAdd(member, welcomeChannelId);
+  await handleGuildMemberAdd(member, welcomeConfig);
   await interaction.reply({ content: "✅ Message de bienvenue envoyé.", flags: 64 });
 }
