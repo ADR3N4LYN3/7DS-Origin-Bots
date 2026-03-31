@@ -20,6 +20,12 @@ export function buildRepublishCommand() {
         .setName("channel")
         .setDescription("Channel cible")
         .setRequired(true),
+    )
+    .addRoleOption((opt) =>
+      opt
+        .setName("ping")
+        .setDescription("Rôle à mentionner (optionnel)")
+        .setRequired(false),
     );
 }
 
@@ -55,7 +61,11 @@ export async function handleRepublishCommand(
   try {
     const payload: { content?: string; embeds?: any[]; files?: any[] } = {};
 
-    if (original.content) payload.content = original.content;
+    const pingRole = interaction.options.getRole("ping");
+    const mention = pingRole ? `<@&${pingRole.id}>\n` : "";
+
+    if (original.content) payload.content = mention + original.content;
+    else if (mention) payload.content = mention;
     if (original.embeds.length > 0) payload.embeds = original.embeds;
     if (original.attachments.size > 0) {
       payload.files = original.attachments.map((a) => ({
