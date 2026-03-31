@@ -9,7 +9,6 @@ import {
 } from "discord.js";
 import { buildClearCommand, handleClearCommand } from "./commands/clear.js";
 import { buildRulesCommand, handleRulesCommand } from "./commands/rules.js";
-import { buildEmbedCommand, handleEmbedCommand } from "./commands/embed.js";
 import { buildSondageCommand, handleSondageCommand } from "./commands/sondage.js";
 import { buildUserinfoCommand, handleUserinfoCommand } from "./commands/userinfo.js";
 import { buildReactionRoleCommand, handleReactionRoleCommand, loadReactionRoles } from "./commands/reactionrole.js";
@@ -117,7 +116,6 @@ client.on("messageReactionRemove", async (reaction, user) => {
 const COMMAND_HANDLERS: Record<string, (interaction: any) => Promise<void>> = {
   clear: (i) => handleClearCommand(i, DISCORD_ADMIN_ROLE_ID),
   rules: (i) => handleRulesCommand(i, DISCORD_ADMIN_ROLE_ID),
-  embed: (i) => handleEmbedCommand(i, DISCORD_ADMIN_ROLE_ID),
   sondage: (i) => handleSondageCommand(i),
   userinfo: (i) => handleUserinfoCommand(i),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
@@ -140,7 +138,6 @@ async function registerCommands() {
   const commands = [
     buildClearCommand(),
     buildRulesCommand(),
-    buildEmbedCommand(),
     buildSondageCommand(),
     buildUserinfoCommand(),
     buildReactionRoleCommand(),

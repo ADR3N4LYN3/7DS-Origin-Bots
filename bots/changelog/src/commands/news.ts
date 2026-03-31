@@ -1,36 +1,70 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-  ModalSubmitInteraction,
-  EmbedBuilder,
   GuildMemberRoleManager,
   type TextChannel,
 } from "discord.js";
+
+function splitContent(text: string, max = 2000): string[] {
+  if (text.length <= max) return [text];
+
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= max) {
+      chunks.push(remaining);
+      break;
+    }
+
+    let splitAt = remaining.lastIndexOf("\n", max);
+    if (splitAt <= 0) splitAt = max;
+
+    chunks.push(remaining.slice(0, splitAt));
+    remaining = remaining.slice(splitAt).replace(/^\n/, "");
+  }
+
+  return chunks;
+}
 
 export function buildNewsCommand() {
   return new SlashCommandBuilder()
     .setName("news")
     .setDescription("Publier une annonce dans le channel annonces")
     .addSubcommand((sub) =>
-      sub.setName("update").setDescription("Publier une mise à jour"),
+      sub
+        .setName("update")
+        .setDescription("Publier une mise à jour")
+        .addStringOption((opt) =>
+          opt.setName("message_id").setDescription("ID du message à publier").setRequired(true),
+        )
+        .addRoleOption((opt) =>
+          opt.setName("ping").setDescription("Rôle à mentionner (optionnel)").setRequired(false),
+        ),
     )
     .addSubcommand((sub) =>
-      sub.setName("patchnote").setDescription("Publier un patch note"),
+      sub
+        .setName("patchnote")
+        .setDescription("Publier un patch note")
+        .addStringOption((opt) =>
+          opt.setName("message_id").setDescription("ID du message à publier").setRequired(true),
+        )
+        .addRoleOption((opt) =>
+          opt.setName("ping").setDescription("Rôle à mentionner (optionnel)").setRequired(false),
+        ),
     )
     .addSubcommand((sub) =>
-      sub.setName("leak").setDescription("Publier un leak (admin uniquement)"),
+      sub
+        .setName("leak")
+        .setDescription("Publier un leak (admin uniquement)")
+        .addStringOption((opt) =>
+          opt.setName("message_id").setDescription("ID du message à publier").setRequired(true),
+        )
+        .addRoleOption((opt) =>
+          opt.setName("ping").setDescription("Rôle à mentionner (optionnel)").setRequired(false),
+        ),
     );
 }
-
-const SUBCOMMAND_CONFIG: Record<string, { emoji: string; color: number; label: string }> = {
-  update:    { emoji: "🔧", color: 0xc9a84c, label: "Mise à jour" },
-  patchnote: { emoji: "📋", color: 0x56a8f5, label: "Patch Note" },
-  leak:      { emoji: "🔮", color: 0xffb938, label: "Leak" },
-};
 
 export async function handleNewsCommand(
   interaction: ChatInputCommandInteraction,
@@ -53,106 +87,63 @@ export async function handleNewsCommand(
     }
   }
 
-  const config = SUBCOMMAND_CONFIG[subcommand]!;
-  const modalId = `news_modal_${subcommand}_${interaction.id}`;
+  const messageId = interaction.options.getString("message_id", true);
+  const sourceChannel = interaction.channel as TextChannel;
 
-  const modal = new ModalBuilder()
-    .setCustomId(modalId)
-    .setTitle(`${config.emoji} ${config.label}`);
-
-  const titreInput = new TextInputBuilder()
-    .setCustomId("titre")
-    .setLabel("Titre")
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setMaxLength(256);
-
-  const descInput = new TextInputBuilder()
-    .setCustomId("description")
-    .setLabel("Description (Markdown supporté)")
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true)
-    .setMaxLength(4000);
-
-  const imageInput = new TextInputBuilder()
-    .setCustomId("image")
-    .setLabel("URL image (optionnel)")
-    .setStyle(TextInputStyle.Short)
-    .setRequired(false);
-
-  const rows = [
-    new ActionRowBuilder<TextInputBuilder>().addComponents(titreInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(descInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(imageInput),
-  ];
-
-  if (subcommand === "leak") {
-    const image2Input = new TextInputBuilder()
-      .setCustomId("image2")
-      .setLabel("URL 2e image (optionnel)")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false);
-
-    rows.push(new ActionRowBuilder<TextInputBuilder>().addComponents(image2Input));
-  }
-
-  modal.addComponents(...rows);
-
-  await interaction.showModal(modal);
-
-  // Wait for modal submission (5 min timeout)
-  let submit: ModalSubmitInteraction;
+  let original;
   try {
-    submit = await interaction.awaitModalSubmit({
-      filter: (i) => i.customId === modalId,
-      time: 300_000,
-    });
+    original = await sourceChannel.messages.fetch(messageId);
   } catch {
-    return; // Timeout — user didn't submit
+    await interaction.reply({ content: "❌ Message introuvable dans ce channel.", flags: 64 });
+    return;
   }
-
-  const titre = submit.fields.getTextInputValue("titre");
-  const description = submit.fields.getTextInputValue("description");
-  const image = submit.fields.getTextInputValue("image") || null;
-  const image2 = subcommand === "leak"
-    ? submit.fields.getTextInputValue("image2") || null
-    : null;
 
   const targetChannelId = subcommand === "leak" ? leaksChannelId : newsChannelId;
+  const channel = (await interaction.client.channels.fetch(targetChannelId)) as TextChannel | null;
 
-  // Heading in message content (renders big), embed for the body
-  const messageContent = `# ${config.emoji} ${titre}`;
-
-  const embed = new EmbedBuilder()
-    .setColor(config.color)
-    .setDescription(description)
-    .setFooter({ text: "7DS Origin" });
-
-  if (image) embed.setImage(image);
-
-  const embeds: EmbedBuilder[] = [embed];
-
-  if (image2) {
-    embed.setURL("https://7dsorigin.app");
-    embeds.push(
-      new EmbedBuilder()
-        .setURL("https://7dsorigin.app")
-        .setImage(image2)
-        .setColor(config.color),
-    );
+  if (!channel) {
+    await interaction.reply({ content: "❌ Channel introuvable.", flags: 64 });
+    return;
   }
 
+  const pingRole = interaction.options.getRole("ping");
+  const mention = pingRole ? `<@&${pingRole.id}>` : "";
+  const fullContent = [mention, original.content].filter(Boolean).join("\n");
+
+  const chunks = splitContent(fullContent);
+
+  const SUBCOMMAND_LABELS: Record<string, string> = {
+    update: "Mise à jour",
+    patchnote: "Patch Note",
+    leak: "Leak",
+  };
+
   try {
-    const channel = (await submit.client.channels.fetch(targetChannelId)) as TextChannel | null;
-    if (!channel) {
-      await submit.reply({ content: "❌ Channel introuvable.", flags: 64 });
-      return;
+    for (let i = 0; i < chunks.length; i++) {
+      const isLast = i === chunks.length - 1;
+      const payload: { content?: string; embeds?: any[]; files?: any[] } = {};
+
+      if (chunks[i]) payload.content = chunks[i];
+
+      if (isLast) {
+        if (original.embeds.length > 0) payload.embeds = original.embeds;
+        if (original.attachments.size > 0) {
+          payload.files = original.attachments.map((a) => ({
+            attachment: a.url,
+            name: a.name ?? undefined,
+          }));
+        }
+      }
+
+      await channel.send(payload);
     }
 
-    await channel.send({ content: messageContent, embeds });
-    await submit.reply({ content: `✅ ${config.label} publiée dans <#${targetChannelId}>.`, flags: 64 });
+    await interaction.reply({
+      content: `✅ ${SUBCOMMAND_LABELS[subcommand]} publiée dans <#${targetChannelId}>.`,
+      flags: 64,
+    });
   } catch (err) {
     console.error("Failed to send news:", err);
-    await submit.reply({ content: "❌ Erreur lors de l'envoi du message.", flags: 64 });
+    await interaction.reply({ content: "❌ Erreur lors de l'envoi du message.", flags: 64 });
   }
 }
