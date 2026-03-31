@@ -44,10 +44,7 @@ export async function handleGuildMemberAdd(member: GuildMember, config: WelcomeC
   }
 
   try {
-    await channel.send({
-      content: `# 👋 Bienvenue ${member} !`,
-      embeds: [embed],
-    });
+    await channel.send({ embeds: [embed] });
   } catch (err) {
     console.error("Failed to send welcome message:", err);
   }

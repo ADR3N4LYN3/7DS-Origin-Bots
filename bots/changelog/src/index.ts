@@ -1,4 +1,5 @@
 import {
+  ActivityType,
   Client,
   GatewayIntentBits,
   REST,
@@ -6,6 +7,7 @@ import {
   type Interaction,
 } from "discord.js";
 import { buildNewsCommand, handleNewsCommand } from "./commands/news.js";
+import { buildRepublishCommand, handleRepublishCommand } from "./commands/repost.js";
 
 // ── Environment variables ────────────────────────────────────────────
 
@@ -22,25 +24,36 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once("clientReady", (c) => {
   console.log(`Discord bot ready — logged in as ${c.user.tag}`);
+  c.user.setPresence({
+    activities: [{ name: "les news 7DS", type: ActivityType.Watching }],
+    status: "online",
+  });
 });
 
 // ── Slash command handling ───────────────────────────────────────────
 
 client.on("interactionCreate", async (interaction: Interaction) => {
   if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== "news") return;
 
-  await handleNewsCommand(interaction, CHANNEL_NEWS, CHANNEL_LEAKS, DISCORD_ADMIN_ROLE_ID);
+  if (interaction.commandName === "news") {
+    await handleNewsCommand(interaction, CHANNEL_NEWS, CHANNEL_LEAKS, DISCORD_ADMIN_ROLE_ID);
+  } else if (interaction.commandName === "republish") {
+    await handleRepublishCommand(interaction, DISCORD_ADMIN_ROLE_ID);
+  }
 });
 
 // ── Register slash commands ──────────────────────────────────────────
 
 async function registerCommands() {
   const rest = new REST().setToken(DISCORD_TOKEN);
-  const command = buildNewsCommand();
+
+  const commands = [
+    buildNewsCommand(),
+    buildRepublishCommand(),
+  ].map((c) => c.toJSON());
 
   await rest.put(Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID), {
-    body: [command.toJSON()],
+    body: commands,
   });
 
   console.log("Slash commands registered");

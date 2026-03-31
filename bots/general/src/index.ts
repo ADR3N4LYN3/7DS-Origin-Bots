@@ -1,4 +1,5 @@
 import {
+  ActivityType,
   Client,
   GatewayIntentBits,
   Partials,
@@ -12,6 +13,7 @@ import { buildEmbedCommand, handleEmbedCommand } from "./commands/embed.js";
 import { buildSondageCommand, handleSondageCommand } from "./commands/sondage.js";
 import { buildUserinfoCommand, handleUserinfoCommand } from "./commands/userinfo.js";
 import { buildReactionRoleCommand, handleReactionRoleCommand, loadReactionRoles } from "./commands/reactionrole.js";
+import { buildRepostCommand, handleRepostCommand } from "./commands/repost.js";
 import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
 import { handleGuildMemberAdd } from "./events/welcome.js";
 
@@ -43,6 +45,10 @@ const client = new Client({
 
 client.once("clientReady", (c) => {
   console.log(`Discord bot ready — logged in as ${c.user.tag}`);
+  c.user.setPresence({
+    activities: [{ name: "7DS Origin", type: ActivityType.Watching }],
+    status: "online",
+  });
 });
 
 // ── Welcome event ───────────────────────────────────────────────────
@@ -113,6 +119,7 @@ const COMMAND_HANDLERS: Record<string, (interaction: any) => Promise<void>> = {
   sondage: (i) => handleSondageCommand(i),
   userinfo: (i) => handleUserinfoCommand(i),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
+  repost: (i) => handleRepostCommand(i, DISCORD_ADMIN_ROLE_ID),
   testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, welcomeConfig),
 };
 
@@ -135,6 +142,7 @@ async function registerCommands() {
     buildSondageCommand(),
     buildUserinfoCommand(),
     buildReactionRoleCommand(),
+    buildRepostCommand(),
     buildTestWelcomeCommand(),
   ].map((c) => c.toJSON());
 
