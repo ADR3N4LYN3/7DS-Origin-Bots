@@ -5,6 +5,28 @@ import {
   type TextChannel,
 } from "discord.js";
 
+function splitContent(text: string, max = 2000): string[] {
+  if (text.length <= max) return [text];
+
+  const chunks: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    if (remaining.length <= max) {
+      chunks.push(remaining);
+      break;
+    }
+
+    let splitAt = remaining.lastIndexOf("\n", max);
+    if (splitAt <= 0) splitAt = max;
+
+    chunks.push(remaining.slice(0, splitAt));
+    remaining = remaining.slice(splitAt).replace(/^\n/, "");
+  }
+
+  return chunks;
+}
+
 export function buildRepublishCommand() {
   return new SlashCommandBuilder()
     .setName("republish")
@@ -59,22 +81,33 @@ export async function handleRepublishCommand(
   }
 
   try {
-    const payload: { content?: string; embeds?: any[]; files?: any[] } = {};
-
     const pingRole = interaction.options.getRole("ping");
-    const mention = pingRole ? `<@&${pingRole.id}>\n` : "";
+    const mention = pingRole ? `<@&${pingRole.id}>` : "";
 
-    if (original.content) payload.content = mention + original.content;
-    else if (mention) payload.content = mention;
-    if (original.embeds.length > 0) payload.embeds = original.embeds;
-    if (original.attachments.size > 0) {
-      payload.files = original.attachments.map((a) => ({
-        attachment: a.url,
-        name: a.name ?? undefined,
-      }));
+    const fullContent = [mention, original.content].filter(Boolean).join("\n");
+
+    // Split content into 2000-char chunks at line breaks
+    const chunks = splitContent(fullContent);
+
+    for (let i = 0; i < chunks.length; i++) {
+      const isLast = i === chunks.length - 1;
+      const payload: { content?: string; embeds?: any[]; files?: any[] } = {};
+
+      if (chunks[i]) payload.content = chunks[i];
+
+      if (isLast) {
+        if (original.embeds.length > 0) payload.embeds = original.embeds;
+        if (original.attachments.size > 0) {
+          payload.files = original.attachments.map((a) => ({
+            attachment: a.url,
+            name: a.name ?? undefined,
+          }));
+        }
+      }
+
+      await targetChannel.send(payload);
     }
 
-    await targetChannel.send(payload);
     await interaction.reply({ content: `✅ Message reposté dans <#${targetChannel.id}>.`, flags: 64 });
   } catch (err) {
     console.error("Failed to repost message:", err);
