@@ -20,7 +20,13 @@ const DISCORD_ADMIN_ROLE_ID = process.env.DISCORD_ADMIN_ROLE_ID!;
 
 // ── Discord client ───────────────────────────────────────────────────
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
+});
 
 client.once("clientReady", (c) => {
   console.log(`Discord bot ready — logged in as ${c.user.tag}`);
