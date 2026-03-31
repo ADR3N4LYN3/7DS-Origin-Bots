@@ -71,6 +71,12 @@ export function buildReactionRoleCommand() {
         .setName("channel")
         .setDescription("Channel cible (requis si message_id)")
         .setRequired(false),
+    )
+    .addChannelOption((opt) =>
+      opt
+        .setName("source")
+        .setDescription("Channel où se trouve le message (par défaut : channel actuel)")
+        .setRequired(false),
     );
 }
 
@@ -99,7 +105,7 @@ export async function handleReactionRoleCommand(
       return;
     }
 
-    const sourceChannel = interaction.channel as TextChannel;
+    const sourceChannel = (interaction.options.getChannel("source") ?? interaction.channel) as TextChannel;
 
     let original;
     try {

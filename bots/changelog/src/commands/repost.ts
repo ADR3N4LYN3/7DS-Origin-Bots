@@ -48,6 +48,12 @@ export function buildRepublishCommand() {
         .setName("ping")
         .setDescription("Rôle à mentionner (optionnel)")
         .setRequired(false),
+    )
+    .addChannelOption((opt) =>
+      opt
+        .setName("source")
+        .setDescription("Channel où se trouve le message (par défaut : channel actuel)")
+        .setRequired(false),
     );
 }
 
@@ -69,8 +75,7 @@ export async function handleRepublishCommand(
   const messageId = interaction.options.getString("message_id", true);
   const targetChannel = interaction.options.getChannel("channel", true) as TextChannel;
 
-  // Chercher le message dans le channel actuel
-  const sourceChannel = interaction.channel as TextChannel;
+  const sourceChannel = (interaction.options.getChannel("source") ?? interaction.channel) as TextChannel;
 
   let original;
   try {
