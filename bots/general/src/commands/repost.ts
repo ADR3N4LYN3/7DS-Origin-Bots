@@ -48,6 +48,12 @@ export function buildRepostCommand() {
         .setName("ping")
         .setDescription("Rôle à mentionner (optionnel)")
         .setRequired(false),
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName("emojis")
+        .setDescription("Emojis à ajouter en réaction (séparés par des espaces)")
+        .setRequired(false),
     );
 }
 
@@ -105,7 +111,20 @@ export async function handleRepostCommand(
         }
       }
 
-      await targetChannel.send(payload);
+      const sent = await targetChannel.send(payload);
+
+      // Add reactions on the last message
+      if (isLast) {
+        const rawEmojis = interaction.options.getString("emojis");
+        if (rawEmojis) {
+          const emojis = rawEmojis.match(/\p{Emoji_Presentation}|\p{Extended_Pictographic}|<a?:\w+:\d+>/gu) ?? [];
+          for (const emoji of emojis) {
+            await sent.react(emoji).catch((err) =>
+              console.error(`Failed to react with ${emoji}:`, err),
+            );
+          }
+        }
+      }
     }
 
     await interaction.reply({ content: `✅ Message reposté dans <#${targetChannel.id}>.`, flags: 64 });
