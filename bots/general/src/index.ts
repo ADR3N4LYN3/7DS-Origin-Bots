@@ -93,7 +93,11 @@ client.on("messageReactionAdd", async (reaction, user) => {
   );
 
   const role = reaction.message.guild?.roles.cache.get(roleId);
-  await user.send(`✅ Rôle **${role?.name ?? roleId}** ajouté !`).catch(() => {});
+  const channel = reaction.message.channel;
+  if (channel && "send" in channel) {
+    const msg = await channel.send(`✅ <@${user.id}> → rôle **${role?.name ?? roleId}** ajouté !`).catch(() => null);
+    if (msg) setTimeout(() => msg.delete().catch(() => {}), 3000);
+  }
 });
 
 client.on("messageReactionRemove", async (reaction, user) => {
@@ -118,7 +122,11 @@ client.on("messageReactionRemove", async (reaction, user) => {
   );
 
   const role = reaction.message.guild?.roles.cache.get(roleId);
-  await user.send(`❌ Rôle **${role?.name ?? roleId}** retiré.`).catch(() => {});
+  const channel = reaction.message.channel;
+  if (channel && "send" in channel) {
+    const msg = await channel.send(`❌ <@${user.id}> → rôle **${role?.name ?? roleId}** retiré.`).catch(() => null);
+    if (msg) setTimeout(() => msg.delete().catch(() => {}), 3000);
+  }
 });
 
 // ── Slash command handling ───────────────────────────────────────────
