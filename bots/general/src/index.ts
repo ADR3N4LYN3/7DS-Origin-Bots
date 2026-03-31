@@ -14,6 +14,12 @@ import { buildRepostCommand, handleRepostCommand } from "./commands/repost.js";
 import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
 import { handleGuildMemberAdd } from "./events/welcome.js";
 
+// ── Error handling ──────────────────────────────────────────────────
+
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection:", err);
+});
+
 // ── Environment variables ────────────────────────────────────────────
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN!;
@@ -113,7 +119,7 @@ client.on("messageReactionRemove", async (reaction, user) => {
 
 const COMMAND_HANDLERS: Record<string, (interaction: any) => Promise<void>> = {
   clear: (i) => handleClearCommand(i, DISCORD_ADMIN_ROLE_ID),
-  sondage: (i) => handleSondageCommand(i),
+  sondage: (i) => handleSondageCommand(i, DISCORD_ADMIN_ROLE_ID),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
   repost: (i) => handleRepostCommand(i, DISCORD_ADMIN_ROLE_ID),
   testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, welcomeConfig),

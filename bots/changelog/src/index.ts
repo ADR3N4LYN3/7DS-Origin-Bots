@@ -9,6 +9,12 @@ import {
 import { buildNewsCommand, handleNewsCommand } from "./commands/news.js";
 import { buildRepublishCommand, handleRepublishCommand } from "./commands/repost.js";
 
+// ── Error handling ──────────────────────────────────────────────────
+
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection:", err);
+});
+
 // ── Environment variables ────────────────────────────────────────────
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN!;

@@ -1,59 +1,25 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  GuildMemberRoleManager,
   type TextChannel,
 } from "discord.js";
-
-function splitContent(text: string, max = 2000): string[] {
-  if (text.length <= max) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= max) {
-      chunks.push(remaining);
-      break;
-    }
-
-    let splitAt = remaining.lastIndexOf("\n", max);
-    if (splitAt <= 0) splitAt = max;
-
-    chunks.push(remaining.slice(0, splitAt));
-    remaining = remaining.slice(splitAt).replace(/^\n/, "");
-  }
-
-  return chunks;
-}
+import { hasAdminRole, splitContent } from "../utils.js";
 
 export function buildRepublishCommand() {
   return new SlashCommandBuilder()
     .setName("republish")
     .setDescription("Republier un message existant dans un autre channel (admin)")
     .addStringOption((opt) =>
-      opt
-        .setName("message_id")
-        .setDescription("ID du message à reposter")
-        .setRequired(true),
+      opt.setName("message_id").setDescription("ID du message à reposter").setRequired(true),
     )
     .addChannelOption((opt) =>
-      opt
-        .setName("channel")
-        .setDescription("Channel cible")
-        .setRequired(true),
+      opt.setName("channel").setDescription("Channel cible").setRequired(true),
     )
     .addRoleOption((opt) =>
-      opt
-        .setName("ping")
-        .setDescription("Rôle à mentionner (optionnel)")
-        .setRequired(false),
+      opt.setName("ping").setDescription("Rôle à mentionner (optionnel)").setRequired(false),
     )
     .addChannelOption((opt) =>
-      opt
-        .setName("source")
-        .setDescription("Channel où se trouve le message (par défaut : channel actuel)")
-        .setRequired(false),
+      opt.setName("source").setDescription("Channel où se trouve le message (par défaut : actuel)").setRequired(false),
     );
 }
 
@@ -61,20 +27,13 @@ export async function handleRepublishCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
 ) {
-  const roles = interaction.member?.roles;
-  const hasAdmin =
-    roles instanceof GuildMemberRoleManager
-      ? roles.cache.has(adminRoleId)
-      : Array.isArray(roles) && roles.includes(adminRoleId);
-
-  if (!hasAdmin) {
+  if (!hasAdminRole(interaction, adminRoleId)) {
     await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
     return;
   }
 
   const messageId = interaction.options.getString("message_id", true);
   const targetChannel = interaction.options.getChannel("channel", true) as TextChannel;
-
   const sourceChannel = (interaction.options.getChannel("source") ?? interaction.channel) as TextChannel;
 
   let original;
@@ -88,10 +47,7 @@ export async function handleRepublishCommand(
   try {
     const pingRole = interaction.options.getRole("ping");
     const mention = pingRole ? `<@&${pingRole.id}>` : "";
-
     const fullContent = [mention, original.content].filter(Boolean).join("\n");
-
-    // Split content into 2000-char chunks at line breaks
     const chunks = splitContent(fullContent);
 
     for (let i = 0; i < chunks.length; i++) {

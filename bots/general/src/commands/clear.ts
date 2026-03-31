@@ -1,9 +1,9 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  GuildMemberRoleManager,
   type TextChannel,
 } from "discord.js";
+import { hasAdminRole } from "../utils.js";
 
 export function buildClearCommand() {
   return new SlashCommandBuilder()
@@ -23,13 +23,7 @@ export async function handleClearCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
 ) {
-  const roles = interaction.member?.roles;
-  const hasAdmin =
-    roles instanceof GuildMemberRoleManager
-      ? roles.cache.has(adminRoleId)
-      : Array.isArray(roles) && roles.includes(adminRoleId);
-
-  if (!hasAdmin) {
+  if (!hasAdminRole(interaction, adminRoleId)) {
     await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
     return;
   }

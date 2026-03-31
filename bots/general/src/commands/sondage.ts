@@ -3,35 +3,14 @@ import {
   ChatInputCommandInteraction,
   type TextChannel,
 } from "discord.js";
+import { hasAdminRole, splitContent } from "../utils.js";
 
 const NUMBER_EMOJIS = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
-
-function splitContent(text: string, max = 2000): string[] {
-  if (text.length <= max) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= max) {
-      chunks.push(remaining);
-      break;
-    }
-
-    let splitAt = remaining.lastIndexOf("\n", max);
-    if (splitAt <= 0) splitAt = max;
-
-    chunks.push(remaining.slice(0, splitAt));
-    remaining = remaining.slice(splitAt).replace(/^\n/, "");
-  }
-
-  return chunks;
-}
 
 export function buildSondageCommand() {
   return new SlashCommandBuilder()
     .setName("sondage")
-    .setDescription("Créer un sondage avec réactions")
+    .setDescription("Créer un sondage avec réactions (admin)")
     .addStringOption((opt) =>
       opt.setName("message_id").setDescription("ID du message à poster").setRequired(true),
     )
@@ -47,13 +26,19 @@ export function buildSondageCommand() {
         .setMaxValue(10),
     )
     .addChannelOption((opt) =>
-      opt.setName("source").setDescription("Channel où se trouve le message (par défaut : channel actuel)").setRequired(false),
+      opt.setName("source").setDescription("Channel où se trouve le message (par défaut : actuel)").setRequired(false),
     );
 }
 
 export async function handleSondageCommand(
   interaction: ChatInputCommandInteraction,
+  adminRoleId: string,
 ) {
+  if (!hasAdminRole(interaction, adminRoleId)) {
+    await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
+    return;
+  }
+
   const messageId = interaction.options.getString("message_id", true);
   const targetChannel = interaction.options.getChannel("channel", true) as TextChannel;
   const optionCount = interaction.options.getInteger("options", true);

@@ -1,36 +1,14 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  GuildMemberRoleManager,
   type TextChannel,
 } from "discord.js";
-
-function splitContent(text: string, max = 2000): string[] {
-  if (text.length <= max) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= max) {
-      chunks.push(remaining);
-      break;
-    }
-
-    let splitAt = remaining.lastIndexOf("\n", max);
-    if (splitAt <= 0) splitAt = max;
-
-    chunks.push(remaining.slice(0, splitAt));
-    remaining = remaining.slice(splitAt).replace(/^\n/, "");
-  }
-
-  return chunks;
-}
+import { hasAdminRole, splitContent } from "../utils.js";
 
 export function buildNewsCommand() {
   return new SlashCommandBuilder()
     .setName("news")
-    .setDescription("Publier une annonce dans le channel annonces")
+    .setDescription("Publier une annonce dans le channel annonces (admin)")
     .addSubcommand((sub) =>
       sub
         .setName("update")
@@ -62,7 +40,7 @@ export function buildNewsCommand() {
     .addSubcommand((sub) =>
       sub
         .setName("leak")
-        .setDescription("Publier un leak (admin uniquement)")
+        .setDescription("Publier un leak")
         .addStringOption((opt) =>
           opt.setName("message_id").setDescription("ID du message à publier").setRequired(true),
         )
@@ -81,21 +59,12 @@ export async function handleNewsCommand(
   leaksChannelId: string,
   adminRoleId: string,
 ) {
-  const subcommand = interaction.options.getSubcommand();
-
-  if (subcommand === "leak") {
-    const roles = interaction.member?.roles;
-    const hasAdmin =
-      roles instanceof GuildMemberRoleManager
-        ? roles.cache.has(adminRoleId)
-        : Array.isArray(roles) && roles.includes(adminRoleId);
-
-    if (!hasAdmin) {
-      await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
-      return;
-    }
+  if (!hasAdminRole(interaction, adminRoleId)) {
+    await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
+    return;
   }
 
+  const subcommand = interaction.options.getSubcommand();
   const messageId = interaction.options.getString("message_id", true);
   const sourceChannel = (interaction.options.getChannel("source") ?? interaction.channel) as TextChannel;
 
@@ -118,7 +87,6 @@ export async function handleNewsCommand(
   const pingRole = interaction.options.getRole("ping");
   const mention = pingRole ? `<@&${pingRole.id}>` : "";
   const fullContent = [mention, original.content].filter(Boolean).join("\n");
-
   const chunks = splitContent(fullContent);
 
   const SUBCOMMAND_LABELS: Record<string, string> = {

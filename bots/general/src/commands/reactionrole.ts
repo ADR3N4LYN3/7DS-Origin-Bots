@@ -7,15 +7,13 @@ import {
   ActionRowBuilder,
   ModalSubmitInteraction,
   EmbedBuilder,
-  GuildMemberRoleManager,
   type TextChannel,
 } from "discord.js";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { hasAdminRole, splitContent } from "../utils.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_PATH = join(__dirname, "..", "..", "data", "reactionroles.json");
+const DATA_PATH = join(process.cwd(), "data", "reactionroles.json");
 
 export interface ReactionRoleMapping {
   messageId: string;
@@ -23,60 +21,41 @@ export interface ReactionRoleMapping {
   mappings: Record<string, string>; // emoji → roleId
 }
 
+// ── In-memory cache ─────────────────────────────────────────────────
+
+let cache: ReactionRoleMapping[] | null = null;
+
 export function loadReactionRoles(): ReactionRoleMapping[] {
-  if (!existsSync(DATA_PATH)) return [];
-  return JSON.parse(readFileSync(DATA_PATH, "utf-8"));
+  if (cache) return cache;
+  if (!existsSync(DATA_PATH)) {
+    cache = [];
+    return cache;
+  }
+  cache = JSON.parse(readFileSync(DATA_PATH, "utf-8"));
+  return cache!;
 }
 
 function saveReactionRoles(data: ReactionRoleMapping[]) {
-  const dir = dirname(DATA_PATH);
+  const dir = join(process.cwd(), "data");
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
+  cache = data;
 }
 
-function splitContent(text: string, max = 2000): string[] {
-  if (text.length <= max) return [text];
-
-  const chunks: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    if (remaining.length <= max) {
-      chunks.push(remaining);
-      break;
-    }
-
-    let splitAt = remaining.lastIndexOf("\n", max);
-    if (splitAt <= 0) splitAt = max;
-
-    chunks.push(remaining.slice(0, splitAt));
-    remaining = remaining.slice(splitAt).replace(/^\n/, "");
-  }
-
-  return chunks;
-}
+// ── Command ─────────────────────────────────────────────────────────
 
 export function buildReactionRoleCommand() {
   return new SlashCommandBuilder()
     .setName("reactionrole")
     .setDescription("Créer un message avec réactions pour attribuer des rôles (admin)")
     .addStringOption((opt) =>
-      opt
-        .setName("message_id")
-        .setDescription("ID du message à reposter (optionnel, sinon crée un embed)")
-        .setRequired(false),
+      opt.setName("message_id").setDescription("ID du message à reposter (optionnel, sinon crée un embed)").setRequired(false),
     )
     .addChannelOption((opt) =>
-      opt
-        .setName("channel")
-        .setDescription("Channel cible (requis si message_id)")
-        .setRequired(false),
+      opt.setName("channel").setDescription("Channel cible (requis si message_id)").setRequired(false),
     )
     .addChannelOption((opt) =>
-      opt
-        .setName("source")
-        .setDescription("Channel où se trouve le message (par défaut : channel actuel)")
-        .setRequired(false),
+      opt.setName("source").setDescription("Channel où se trouve le message (par défaut : actuel)").setRequired(false),
     );
 }
 
@@ -84,13 +63,7 @@ export async function handleReactionRoleCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
 ) {
-  const roles = interaction.member?.roles;
-  const hasAdmin =
-    roles instanceof GuildMemberRoleManager
-      ? roles.cache.has(adminRoleId)
-      : Array.isArray(roles) && roles.includes(adminRoleId);
-
-  if (!hasAdmin) {
+  if (!hasAdminRole(interaction, adminRoleId)) {
     await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
     return;
   }
