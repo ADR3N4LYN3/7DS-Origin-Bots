@@ -12,6 +12,7 @@ import { buildEmbedCommand, handleEmbedCommand } from "./commands/embed.js";
 import { buildSondageCommand, handleSondageCommand } from "./commands/sondage.js";
 import { buildUserinfoCommand, handleUserinfoCommand } from "./commands/userinfo.js";
 import { buildReactionRoleCommand, handleReactionRoleCommand, loadReactionRoles } from "./commands/reactionrole.js";
+import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
 import { handleGuildMemberAdd } from "./events/welcome.js";
 
 // ── Environment variables ────────────────────────────────────────────
@@ -102,6 +103,7 @@ const COMMAND_HANDLERS: Record<string, (interaction: any) => Promise<void>> = {
   sondage: (i) => handleSondageCommand(i),
   userinfo: (i) => handleUserinfoCommand(i),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
+  testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, CHANNEL_WELCOME),
 };
 
 client.on("interactionCreate", async (interaction: Interaction) => {
@@ -123,6 +125,7 @@ async function registerCommands() {
     buildSondageCommand(),
     buildUserinfoCommand(),
     buildReactionRoleCommand(),
+    buildTestWelcomeCommand(),
   ].map((c) => c.toJSON());
 
   await rest.put(Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID), {
