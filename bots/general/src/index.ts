@@ -8,9 +8,7 @@ import {
   type Interaction,
 } from "discord.js";
 import { buildClearCommand, handleClearCommand } from "./commands/clear.js";
-import { buildRulesCommand, handleRulesCommand } from "./commands/rules.js";
 import { buildSondageCommand, handleSondageCommand } from "./commands/sondage.js";
-import { buildUserinfoCommand, handleUserinfoCommand } from "./commands/userinfo.js";
 import { buildReactionRoleCommand, handleReactionRoleCommand, loadReactionRoles } from "./commands/reactionrole.js";
 import { buildRepostCommand, handleRepostCommand } from "./commands/repost.js";
 import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
@@ -115,9 +113,7 @@ client.on("messageReactionRemove", async (reaction, user) => {
 
 const COMMAND_HANDLERS: Record<string, (interaction: any) => Promise<void>> = {
   clear: (i) => handleClearCommand(i, DISCORD_ADMIN_ROLE_ID),
-  rules: (i) => handleRulesCommand(i, DISCORD_ADMIN_ROLE_ID),
   sondage: (i) => handleSondageCommand(i),
-  userinfo: (i) => handleUserinfoCommand(i),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
   repost: (i) => handleRepostCommand(i, DISCORD_ADMIN_ROLE_ID),
   testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, welcomeConfig),
@@ -137,9 +133,7 @@ async function registerCommands() {
 
   const commands = [
     buildClearCommand(),
-    buildRulesCommand(),
     buildSondageCommand(),
-    buildUserinfoCommand(),
     buildReactionRoleCommand(),
     buildRepostCommand(),
     buildTestWelcomeCommand(),
