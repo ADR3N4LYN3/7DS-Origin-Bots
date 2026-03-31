@@ -91,6 +91,9 @@ client.on("messageReactionAdd", async (reaction, user) => {
   await member.roles.add(roleId).catch((err) =>
     console.error("Failed to add role:", err),
   );
+
+  const role = reaction.message.guild?.roles.cache.get(roleId);
+  await user.send(`✅ Rôle **${role?.name ?? roleId}** ajouté !`).catch(() => {});
 });
 
 client.on("messageReactionRemove", async (reaction, user) => {
@@ -113,6 +116,9 @@ client.on("messageReactionRemove", async (reaction, user) => {
   await member.roles.remove(roleId).catch((err) =>
     console.error("Failed to remove role:", err),
   );
+
+  const role = reaction.message.guild?.roles.cache.get(roleId);
+  await user.send(`❌ Rôle **${role?.name ?? roleId}** retiré.`).catch(() => {});
 });
 
 // ── Slash command handling ───────────────────────────────────────────
