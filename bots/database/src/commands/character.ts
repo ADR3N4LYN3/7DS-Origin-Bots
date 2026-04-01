@@ -53,6 +53,15 @@ function fmt(n: number): string {
   return n.toLocaleString("fr-FR");
 }
 
+// ── Tree helpers ────────────────────────────────────────────────────
+
+function tree(items: string[]): string {
+  return items.map((item, i) => {
+    const prefix = i < items.length - 1 ? "├" : "└";
+    return `${prefix} ${item}`;
+  }).join("\n");
+}
+
 // ── Embed builder ───────────────────────────────────────────────────
 
 function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
@@ -62,52 +71,95 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
   const s = char.stats;
 
   const title = char.name !== char.nameEn
-    ? `${char.name} / ${char.nameEn}`
+    ? `${char.name} [${char.nameEn}]`
     : char.name;
 
   // ── Description ──
-  const weapons = char.weaponSlots
-    .map((w) => WEAPON_LABELS[w.weapon] ?? w.weapon)
-    .join(" · ");
-
   const desc = [
-    `${elemEmoji} **${char.element}** · **${role}**`,
+    `${elemEmoji} ${char.element} & ${role}`,
     "",
-    `❤️ **${fmt(s.hp)}**  ⚔️ **${fmt(s.atk)}**  🛡️ **${fmt(s.def)}**  💨 **${s.spd}**`,
-    "",
-    `🗡️ ${weapons}`,
+    `**${title}**`,
   ];
 
-  // ── Skills — une ligne par skill ──
-  const skillLines = char.skills.slice(0, 6).map((sk) => {
-    const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
-    const cd = sk.cooldown ? ` · ${sk.cooldown}s` : "";
-    return `╸ **${sk.name}** — *${cat}${cd}*`;
-  });
-
-  // ── Adventure ──
-  const adventureLines = char.adventureSkill
-    .map((a) => `╸ **${a.name}** — ${clean(a.description).split("\n")[0].slice(0, 80)}`);
+  if (char.description) {
+    const cleaned = clean(char.description).split("\n")[0].slice(0, 120);
+    desc.push("", `*${cleaned}${char.description.length > 120 ? "..." : ""}*`);
+  }
 
   const embed = new EmbedBuilder()
     .setColor(color)
-    .setTitle(title)
-    .setURL(char.url)
     .setDescription(desc.join("\n"))
     .setThumbnail(char.imageUrl || null);
 
-  if (adventureLines.length > 0) {
-    embed.addFields({
-      name: "🏕️ Aventure",
-      value: adventureLines.join("\n"),
+  // ── Stats : 2 inline fields ──
+  embed.addFields(
+    {
+      name: "📊 Stats :",
+      value: tree([
+        `❤️ PV *${fmt(s.hp)}*`,
+        `⚔️ ATK *${fmt(s.atk)}*`,
+        `🛡️ DEF *${fmt(s.def)}*`,
+        `💨 SPD *${s.spd}*`,
+      ]),
       inline: true,
+    },
+    {
+      name: "📈 Secondaires :",
+      value: tree([
+        `Crit *${s.critRate}%*`,
+        `Crit DMG *${s.critDamage}%*`,
+        `Précision *${s.accuracy}%*`,
+        `Bloc *${s.block}%*`,
+      ]),
+      inline: true,
+    },
+  );
+
+  // ── Armes ──
+  const weapons = char.weaponSlots
+    .map((w) => `⚔️ *${WEAPON_LABELS[w.weapon] ?? w.weapon}*`);
+
+  embed.addFields({
+    name: "🗡️ Armes :",
+    value: tree(weapons.length > 0 ? weapons : ["—"]),
+    inline: true,
+  });
+
+  // ── Skills : 2 inline fields (nom | type) ──
+  const skills = char.skills.slice(0, 8);
+
+  if (skills.length > 0) {
+    const skillNames = skills.map((sk) => `**${sk.name}**`);
+    const skillTypes = skills.map((sk) => {
+      const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
+      const cd = sk.cooldown ? ` · ${sk.cooldown}s` : "";
+      return `*${cat}${cd}*`;
     });
+
+    embed.addFields(
+      {
+        name: "⚔️ Compétences :",
+        value: tree(skillNames),
+        inline: true,
+      },
+      {
+        name: "Type :",
+        value: tree(skillTypes),
+        inline: true,
+      },
+    );
   }
 
-  if (skillLines.length > 0) {
+  // ── Passif d'aventure ──
+  if (char.adventureSkill.length > 0) {
+    const advLines = char.adventureSkill.map((a) => {
+      const d = clean(a.description).split("\n")[0].slice(0, 80);
+      return `**${a.name}**\n*${d}*`;
+    });
+
     embed.addFields({
-      name: `⚔️ Compétences (${skillLines.length})`,
-      value: skillLines.join("\n"),
+      name: "🏕️ Passif d'aventure :",
+      value: tree(advLines),
     });
   }
 
