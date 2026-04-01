@@ -8,7 +8,7 @@ import {
   ButtonStyle,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
-import type { CharacterData } from "../api/types.js";
+import type { CharacterData, CharacterSkill } from "../api/types.js";
 
 // ── Mappings ────────────────────────────────────────────────────────
 
@@ -34,9 +34,9 @@ const RARITY_COLORS: Record<string, number> = {
 };
 
 const WEAPON_LABELS: Record<string, string> = {
-  "Sword1h": "Épée 1H", "SwordDual": "Doubles épées", "Sword2h": "Épée 2H",
-  "Bow": "Arc", "Staff": "Bâton", "Dagger": "Dague",
-  "Spear": "Lance", "Axe": "Hache", "Mace": "Masse", "Shield": "Bouclier",
+  "Sword1h": "🗡️ Épée 1H", "SwordDual": "⚔️ Doubles épées", "Sword2h": "🔱 Épée 2H",
+  "Bow": "🏹 Arc", "Staff": "🪄 Bâton", "Dagger": "🔪 Dague",
+  "Spear": "🔱 Lance", "Axe": "🪓 Hache", "Mace": "🔨 Masse", "Shield": "🛡️ Bouclier",
 };
 
 const SKILL_CATEGORIES: Record<string, string> = {
@@ -53,13 +53,22 @@ function fmt(n: number): string {
   return n.toLocaleString("fr-FR");
 }
 
-// ── Tree helpers ────────────────────────────────────────────────────
-
 function tree(items: string[]): string {
-  return items.map((item, i) => {
-    const prefix = i < items.length - 1 ? "├" : "└";
-    return `${prefix} ${item}`;
-  }).join("\n");
+  return items.map((item, i) =>
+    `${i < items.length - 1 ? "├" : "└"} ${item}`,
+  ).join("\n");
+}
+
+// ── Group skills by weapon ──────────────────────────────────────────
+
+function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSkill[]> {
+  const map = new Map<string, CharacterSkill[]>();
+  for (const sk of skills) {
+    const key = sk.weaponType;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(sk);
+  }
+  return map;
 }
 
 // ── Embed builder ───────────────────────────────────────────────────
@@ -75,16 +84,7 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
     : char.name;
 
   // ── Description ──
-  const desc = [
-    `${elemEmoji} ${char.element} & ${role}`,
-    "",
-    `**${title}**`,
-  ];
-
-  if (char.description) {
-    const cleaned = clean(char.description).split("\n")[0].slice(0, 120);
-    desc.push("", `*${cleaned}${char.description.length > 120 ? "..." : ""}*`);
-  }
+  const desc = [`${elemEmoji} ${char.element} & ${role}`, "", `**${title}**`];
 
   const embed = new EmbedBuilder()
     .setColor(color)
@@ -92,68 +92,59 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
     .setThumbnail(char.imageUrl || null);
 
   // ── Stats : 2 inline fields ──
+  const statItems = [
+    `❤️ PV *${fmt(s.hp)}*`,
+    `⚔️ ATK *${fmt(s.atk)}*`,
+    `🛡️ DEF *${fmt(s.def)}*`,
+    `💨 SPD *${s.spd}*`,
+  ];
+
+  const secItems: string[] = [];
+  if (s.critRate) secItems.push(`Crit *${s.critRate}%*`);
+  if (s.critDamage) secItems.push(`Crit DMG *${s.critDamage}%*`);
+  if (s.accuracy) secItems.push(`Préc. *${s.accuracy}%*`);
+  if (s.block) secItems.push(`Bloc *${s.block}%*`);
+
   embed.addFields(
-    {
-      name: "📊 Stats :",
-      value: tree([
-        `❤️ PV *${fmt(s.hp)}*`,
-        `⚔️ ATK *${fmt(s.atk)}*`,
-        `🛡️ DEF *${fmt(s.def)}*`,
-        `💨 SPD *${s.spd}*`,
-      ]),
-      inline: true,
-    },
-    {
-      name: "📈 Secondaires :",
-      value: tree([
-        `Crit *${s.critRate}%*`,
-        `Crit DMG *${s.critDamage}%*`,
-        `Précision *${s.accuracy}%*`,
-        `Bloc *${s.block}%*`,
-      ]),
-      inline: true,
-    },
+    { name: "📊 Stats :", value: tree(statItems), inline: true },
   );
+
+  if (secItems.length > 0) {
+    embed.addFields(
+      { name: "📈 Secondaires :", value: tree(secItems), inline: true },
+    );
+  }
 
   // ── Armes ──
   const weapons = char.weaponSlots
-    .map((w) => `⚔️ *${WEAPON_LABELS[w.weapon] ?? w.weapon}*`);
+    .map((w) => WEAPON_LABELS[w.weapon] ?? w.weapon);
 
   embed.addFields({
     name: "🗡️ Armes :",
     value: tree(weapons.length > 0 ? weapons : ["—"]),
-    inline: true,
   });
 
-  // ── Skills : 2 inline fields (nom | type) ──
-  const skills = char.skills.slice(0, 8);
+  // ── Skills groupées par arme (1 field par arme) ──
+  const grouped = groupSkillsByWeapon(char.skills);
 
-  if (skills.length > 0) {
-    const skillNames = skills.map((sk) => `**${sk.name}**`);
-    const skillTypes = skills.map((sk) => {
+  for (const [weaponType, skills] of grouped) {
+    const weaponName = WEAPON_LABELS[weaponType] ?? weaponType;
+    const lines = skills.map((sk) => {
       const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
       const cd = sk.cooldown ? ` · ${sk.cooldown}s` : "";
-      return `*${cat}${cd}*`;
+      return `**${sk.name}** — *${cat}${cd}*`;
     });
 
-    embed.addFields(
-      {
-        name: "⚔️ Compétences :",
-        value: tree(skillNames),
-        inline: true,
-      },
-      {
-        name: "Type :",
-        value: tree(skillTypes),
-        inline: true,
-      },
-    );
+    embed.addFields({
+      name: weaponName,
+      value: tree(lines).slice(0, 1024),
+    });
   }
 
   // ── Passif d'aventure ──
   if (char.adventureSkill.length > 0) {
     const advLines = char.adventureSkill.map((a) => {
-      const d = clean(a.description).split("\n")[0].slice(0, 80);
+      const d = clean(a.description).split("\n")[0].slice(0, 100);
       return `**${a.name}**\n*${d}*`;
     });
 
