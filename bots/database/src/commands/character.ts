@@ -2,10 +2,12 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
+  ButtonInteraction,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ComponentType,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
 import type { CharacterData, CharacterSkill } from "../api/types.js";
@@ -50,6 +52,8 @@ const SKILL_CATEGORIES: Record<string, string> = {
   "ACTIVE_THIRD": "Spéciale", "TAG_SKILL": "Tag",
 };
 
+// ── Helpers ─────────────────────────────────────────────────────────
+
 function clean(text: string): string {
   return text.replace(/\[#[0-9A-Fa-f]{6}]/g, "").replace(/\[-]/g, "");
 }
@@ -68,8 +72,6 @@ function tree(items: string[]): string {
   ).join("\n");
 }
 
-// ── Group skills by weapon ──────────────────────────────────────────
-
 function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSkill[]> {
   const map = new Map<string, CharacterSkill[]>();
   for (const sk of skills) {
@@ -80,69 +82,102 @@ function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSki
   return map;
 }
 
-// ── Embed builder ───────────────────────────────────────────────────
+// ── Shared header ───────────────────────────────────────────────────
 
-function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
+function baseEmbed(char: CharacterData): EmbedBuilder {
   const elemEmoji = ELEMENT_EMOJIS[char.element] ?? "🔮";
   const rarityEmoji = RARITY_EMOJIS[char.rarity] ?? "";
   const role = ROLE_LABELS[char.role] ?? char.role;
   const color = RARITY_COLORS[char.rarity] ?? 0xc9a84c;
-  const s = char.stats;
 
   const title = char.name !== char.nameEn
     ? `${char.name} [${char.nameEn}]`
     : char.name;
 
-  // ── Description ──
-  const desc = [`${elemEmoji} ${char.element} & ${role} ${rarityEmoji}`, "", `**${title}**`];
-
-  const embed = new EmbedBuilder()
+  return new EmbedBuilder()
     .setColor(color)
-    .setDescription(desc.join("\n"))
-    .setThumbnail(char.imageUrl || null);
+    .setDescription(`${elemEmoji} ${char.element} · ${role} ${rarityEmoji}\n\n**${title}**`)
+    .setThumbnail(char.imageUrl || null)
+    .setFooter({ text: "7DS Origin · 7dsorigin.app" });
+}
 
-  // ── Stats : 2 inline fields ──
-  const statItems = [
-    `❤️ PV *${fmt(s.hp)}*`,
-    `⚔️ ATK *${fmt(s.atk)}*`,
-    `🛡️ DEF *${fmt(s.def)}*`,
-    `🏃 Vitesse *${fmt(s.spd)}*`,
-  ];
+// ── Page 1 : Vue d'ensemble ─────────────────────────────────────────
 
-  const secItems: string[] = [];
-  if (s.critRate) secItems.push(`Crit *${pct(s.critRate)}*`);
-  if (s.critDamage) secItems.push(`Crit DMG *${pct(s.critDamage)}*`);
-  if (s.accuracy) secItems.push(`Préc. *${pct(s.accuracy)}*`);
-  if (s.block) secItems.push(`Bloc *${pct(s.block)}*`);
+function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
+  const embed = baseEmbed(char);
+  const s = char.stats;
 
-  embed.addFields(
-    { name: "📊 Stats (base) :", value: tree(statItems), inline: true },
-  );
-
-  if (secItems.length > 0) {
-    embed.addFields(
-      { name: "📈 Secondaires :", value: tree(secItems), inline: true },
-    );
-  }
-
-  // ── Armes ──
-  const weapons = char.weaponSlots
-    .map((w) => WEAPON_LABELS[w.weapon] ?? w.weapon);
-
+  // Stats de base — 2 colonnes inline
   embed.addFields({
-    name: "🗡️ Armes :",
-    value: tree(weapons.length > 0 ? weapons : ["—"]),
+    name: "📊 Stats de base",
+    value: tree([
+      `❤️ PV **${fmt(s.hp)}**`,
+      `⚔️ ATK **${fmt(s.atk)}**`,
+      `🛡️ DEF **${fmt(s.def)}**`,
+      `🏃 Vitesse **${fmt(s.spd)}**`,
+    ]),
+    inline: true,
   });
 
-  // ── Skills groupées par arme (1 field par arme) ──
+  const secItems: string[] = [];
+  if (s.critRate) secItems.push(`Crit **${pct(s.critRate)}**`);
+  if (s.critDamage) secItems.push(`Crit DMG **${pct(s.critDamage)}**`);
+  if (s.accuracy) secItems.push(`Préc. **${pct(s.accuracy)}**`);
+  if (s.block) secItems.push(`Bloc **${pct(s.block)}**`);
+
+  if (secItems.length > 0) {
+    embed.addFields({
+      name: "📈 Secondaires",
+      value: tree(secItems),
+      inline: true,
+    });
+  }
+
+  // Armes compatibles
+  const weaponLines = char.weaponSlots.map((w) => {
+    const label = WEAPON_LABELS[w.weapon] ?? w.weapon;
+    const elem = ELEMENT_EMOJIS[w.element] ?? "";
+    const role = ROLE_LABELS[w.role] ?? w.role;
+    return `${label} · ${elem} ${w.element} · ${role}`;
+  });
+
+  embed.addFields({
+    name: "🗡️ Armes compatibles",
+    value: tree(weaponLines.length > 0 ? weaponLines : ["—"]),
+  });
+
+  // Description du personnage (si dispo)
+  if (char.description) {
+    const desc = clean(char.description).slice(0, 200);
+    embed.addFields({
+      name: "📖 Description",
+      value: `> *${desc}${char.description.length > 200 ? "…" : ""}*`,
+    });
+  }
+
+  return embed;
+}
+
+// ── Page 2 : Skills ─────────────────────────────────────────────────
+
+function buildSkillsEmbed(char: CharacterData): EmbedBuilder {
+  const embed = baseEmbed(char);
+
   const grouped = groupSkillsByWeapon(char.skills);
 
   for (const [weaponType, skills] of grouped) {
     const weaponName = WEAPON_LABELS[weaponType] ?? weaponType;
+
     const lines = skills.map((sk) => {
       const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
-      const cd = sk.cooldown ? ` · ${sk.cooldown}s` : "";
-      return `**${sk.name}** — *${cat}${cd}*`;
+      const cd = sk.cooldown ? ` · CD ${sk.cooldown}s` : "";
+      const dmg = sk.damagePercent ? ` · ${sk.damagePercent}` : "";
+      const hits = sk.hitCount > 0 ? ` × ${sk.hitCount}` : "";
+      const buffs = sk.buffs.length > 0
+        ? "\n" + sk.buffs.map((b) => `  🔸 ${b.nameFr}`).join("\n")
+        : "";
+
+      return `**${sk.name}** — *${cat}${cd}*${dmg}${hits}${buffs}`;
     });
 
     embed.addFields({
@@ -151,25 +186,53 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
     });
   }
 
-  // ── Passif d'aventure ──
+  // Passif d'aventure
   if (char.adventureSkill.length > 0) {
     const advLines = char.adventureSkill.map((a) => {
-      const d = clean(a.description).split("\n")[0].slice(0, 100);
-      return `**${a.name}**\n*${d}*`;
+      const d = clean(a.description).split("\n")[0].slice(0, 120);
+      return `**${a.name}**\n> *${d}*`;
     });
 
     embed.addFields({
-      name: "🏕️ Passif d'aventure :",
+      name: "🏕️ Passif d'aventure",
       value: tree(advLines),
     });
   }
 
-  embed.setFooter({ text: "7DS Origin · 7dsorigin.app" });
-
   return embed;
 }
 
-// ── Command ─────────────────────────────────────────────────────────
+// ── Buttons ─────────────────────────────────────────────────────────
+
+type Page = "overview" | "skills";
+
+function buildButtons(char: CharacterData, activePage: Page): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`char:${char.slug}:overview`)
+      .setLabel("Vue d'ensemble")
+      .setEmoji("📊")
+      .setStyle(activePage === "overview" ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      .setDisabled(activePage === "overview"),
+    new ButtonBuilder()
+      .setCustomId(`char:${char.slug}:skills`)
+      .setLabel("Skills")
+      .setEmoji("⚔️")
+      .setStyle(activePage === "skills" ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      .setDisabled(activePage === "skills"),
+    new ButtonBuilder()
+      .setLabel("Fiche complète")
+      .setURL(char.url)
+      .setStyle(ButtonStyle.Link)
+      .setEmoji("🔗"),
+  );
+}
+
+function getEmbed(char: CharacterData, page: Page): EmbedBuilder {
+  return page === "overview" ? buildOverviewEmbed(char) : buildSkillsEmbed(char);
+}
+
+// ── Command definition ──────────────────────────────────────────────
 
 export function buildCharacterCommand() {
   return new SlashCommandBuilder()
@@ -183,6 +246,8 @@ export function buildCharacterCommand() {
         .setAutocomplete(true),
     );
 }
+
+// ── Autocomplete ────────────────────────────────────────────────────
 
 export async function handleCharacterAutocomplete(
   interaction: AutocompleteInteraction,
@@ -205,6 +270,10 @@ export async function handleCharacterAutocomplete(
   }
 }
 
+// ── Execute command ─────────────────────────────────────────────────
+
+const COLLECTOR_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
 export async function handleCharacterCommand(
   interaction: ChatInputCommandInteraction,
   apiClient: ApiClient,
@@ -213,18 +282,58 @@ export async function handleCharacterCommand(
   await interaction.deferReply();
 
   try {
-    const character = await apiClient.getCharacter(slug);
-    const embed = buildCharacterEmbed(character);
+    const char = await apiClient.getCharacter(slug);
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setLabel("Fiche complète")
-        .setURL(character.url)
-        .setStyle(ButtonStyle.Link)
-        .setEmoji("🔗"),
-    );
+    const reply = await interaction.editReply({
+      embeds: [buildOverviewEmbed(char)],
+      components: [buildButtons(char, "overview")],
+    });
 
-    await interaction.editReply({ embeds: [embed], components: [row] });
+    const collector = reply.createMessageComponentCollector({
+      componentType: ComponentType.Button,
+      time: COLLECTOR_TIMEOUT,
+    });
+
+    collector.on("collect", async (btn: ButtonInteraction) => {
+      // Only the command author can navigate
+      if (btn.user.id !== interaction.user.id) {
+        await btn.reply({ content: "Utilise `/character` pour ta propre recherche.", ephemeral: true });
+        return;
+      }
+
+      const page = btn.customId.split(":")[2] as Page;
+
+      await btn.update({
+        embeds: [getEmbed(char, page)],
+        components: [buildButtons(char, page)],
+      });
+    });
+
+    collector.on("end", async () => {
+      // Disable buttons after timeout
+      try {
+        const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId("char:expired:overview")
+            .setLabel("Vue d'ensemble")
+            .setEmoji("📊")
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(true),
+          new ButtonBuilder()
+            .setCustomId("char:expired:skills")
+            .setLabel("Skills")
+            .setEmoji("⚔️")
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(true),
+          new ButtonBuilder()
+            .setLabel("Fiche complète")
+            .setURL(char.url)
+            .setStyle(ButtonStyle.Link)
+            .setEmoji("🔗"),
+        );
+        await interaction.editReply({ components: [disabledRow] });
+      } catch { /* message may have been deleted */ }
+    });
   } catch (err) {
     console.error("Character fetch error:", err);
     await interaction.editReply({ content: "❌ Personnage introuvable ou erreur API." });
