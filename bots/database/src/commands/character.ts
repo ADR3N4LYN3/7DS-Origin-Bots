@@ -2,11 +2,11 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
-  ButtonInteraction,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
   ComponentType,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
@@ -44,6 +44,12 @@ const WEAPON_LABELS: Record<string, string> = {
   "Sword1h": "🗡️ Épée 1H", "SwordDual": "⚔️ Doubles épées", "Sword2h": "🔱 Épée 2H",
   "Bow": "🏹 Arc", "Staff": "🪄 Bâton", "Dagger": "🔪 Dague",
   "Spear": "🔱 Lance", "Axe": "🪓 Hache", "Mace": "🔨 Masse", "Shield": "🛡️ Bouclier",
+};
+
+const WEAPON_SELECT_EMOJIS: Record<string, string> = {
+  "Sword1h": "🗡️", "SwordDual": "⚔️", "Sword2h": "🔱",
+  "Bow": "🏹", "Staff": "🪄", "Dagger": "🔪",
+  "Spear": "🔱", "Axe": "🪓", "Mace": "🔨", "Shield": "🛡️",
 };
 
 const SKILL_CATEGORIES: Record<string, string> = {
@@ -107,7 +113,6 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
   const embed = baseEmbed(char);
   const s = char.stats;
 
-  // Stats de base — 2 colonnes inline
   embed.addFields({
     name: "📊 Stats de base",
     value: tree([
@@ -133,7 +138,6 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
     });
   }
 
-  // Armes compatibles
   const weaponLines = char.weaponSlots.map((w) => {
     const label = WEAPON_LABELS[w.weapon] ?? w.weapon;
     const elem = ELEMENT_EMOJIS[w.element] ?? "";
@@ -146,7 +150,6 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
     value: tree(weaponLines.length > 0 ? weaponLines : ["—"]),
   });
 
-  // Description du personnage (si dispo)
   if (char.description) {
     const desc = clean(char.description).slice(0, 200);
     embed.addFields({
@@ -158,36 +161,36 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
   return embed;
 }
 
-// ── Page 2 : Skills ─────────────────────────────────────────────────
+// ── Page 2 : Skills (filtrés par arme) ──────────────────────────────
 
-function buildSkillsEmbed(char: CharacterData): EmbedBuilder {
+function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder {
   const embed = baseEmbed(char);
-
   const grouped = groupSkillsByWeapon(char.skills);
+  const skills = grouped.get(weaponType) ?? [];
+  const weaponName = WEAPON_LABELS[weaponType] ?? weaponType;
 
-  for (const [weaponType, skills] of grouped) {
-    const weaponName = WEAPON_LABELS[weaponType] ?? weaponType;
-
-    const lines = skills.map((sk) => {
+  if (skills.length > 0) {
+    for (const sk of skills) {
       const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
       const cd = sk.cooldown ? ` · CD ${sk.cooldown}s` : "";
-      const dmg = sk.damagePercent ? ` · ${sk.damagePercent}` : "";
-      const hits = sk.hitCount > 0 ? ` × ${sk.hitCount}` : "";
+      const dmg = sk.damagePercent ? `\n> DMG ${sk.damagePercent}` : "";
+      const hits = sk.hitCount > 0 ? ` × ${sk.hitCount} hits` : "";
+      const desc = sk.description ? `\n> *${clean(sk.description).split("\n")[0].slice(0, 150)}*` : "";
       const buffs = sk.buffs?.length > 0
-        ? "\n" + sk.buffs.map((b) => `  🔸 ${b.nameFr}`).join("\n")
+        ? "\n" + sk.buffs.map((b) => `> 🔸 ${b.nameFr}`).join("\n")
         : "";
 
-      return `**${sk.name}** — *${cat}${cd}*${dmg}${hits}${buffs}`;
-    });
-
-    embed.addFields({
-      name: weaponName,
-      value: tree(lines).slice(0, 1024),
-    });
+      embed.addFields({
+        name: `${cat} — ${sk.name}`,
+        value: `${weaponName}${cd}${dmg}${hits}${desc}${buffs}`,
+      });
+    }
+  } else {
+    embed.addFields({ name: weaponName, value: "*Aucun skill pour cette arme*" });
   }
 
-  // Passif d'aventure
-  if (char.adventureSkill.length > 0) {
+  // Passif d'aventure (affiché sur toutes les pages skills)
+  if (char.adventureSkill?.length > 0) {
     const advLines = char.adventureSkill.map((a) => {
       const d = clean(a.description).split("\n")[0].slice(0, 120);
       return `**${a.name}**\n> *${d}*`;
@@ -202,11 +205,15 @@ function buildSkillsEmbed(char: CharacterData): EmbedBuilder {
   return embed;
 }
 
-// ── Buttons ─────────────────────────────────────────────────────────
+// ── Components ──────────────────────────────────────────────────────
 
 type Page = "overview" | "skills";
 
-function buildButtons(char: CharacterData, activePage: Page): ActionRowBuilder<ButtonBuilder> {
+function getWeaponTypes(char: CharacterData): string[] {
+  return [...new Set(char.skills.map((sk) => sk.weaponType))];
+}
+
+function buildButtonRow(char: CharacterData, activePage: Page): ActionRowBuilder<ButtonBuilder> {
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`char:${char.slug}:overview`)
@@ -228,8 +235,60 @@ function buildButtons(char: CharacterData, activePage: Page): ActionRowBuilder<B
   );
 }
 
-function getEmbed(char: CharacterData, page: Page): EmbedBuilder {
-  return page === "overview" ? buildOverviewEmbed(char) : buildSkillsEmbed(char);
+function buildWeaponSelectRow(char: CharacterData, activeWeapon: string): ActionRowBuilder<StringSelectMenuBuilder> {
+  const weaponTypes = getWeaponTypes(char);
+
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`char:${char.slug}:weapon`)
+    .setPlaceholder("Choisir une arme")
+    .addOptions(
+      weaponTypes.map((wt) => ({
+        label: (WEAPON_LABELS[wt] ?? wt).replace(/^[^\w]*\s*/, ""), // strip leading emoji for label
+        value: wt,
+        emoji: WEAPON_SELECT_EMOJIS[wt] ?? "⚔️",
+        default: wt === activeWeapon,
+      })),
+    );
+
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+}
+
+function buildComponents(
+  char: CharacterData,
+  page: Page,
+  activeWeapon: string,
+): (ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>)[] {
+  const rows: (ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>)[] = [
+    buildButtonRow(char, page),
+  ];
+
+  if (page === "skills") {
+    rows.push(buildWeaponSelectRow(char, activeWeapon));
+  }
+
+  return rows;
+}
+
+function buildExpiredComponents(char: CharacterData): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId("char:expired:overview")
+      .setLabel("Vue d'ensemble")
+      .setEmoji("📊")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    new ButtonBuilder()
+      .setCustomId("char:expired:skills")
+      .setLabel("Skills")
+      .setEmoji("⚔️")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    new ButtonBuilder()
+      .setLabel("Fiche complète")
+      .setURL(char.url)
+      .setStyle(ButtonStyle.Link)
+      .setEmoji("🔗"),
+  );
 }
 
 // ── Command definition ──────────────────────────────────────────────
@@ -283,55 +342,52 @@ export async function handleCharacterCommand(
 
   try {
     const char = await apiClient.getCharacter(slug);
+    const weaponTypes = getWeaponTypes(char);
+    let activeWeapon = weaponTypes[0] ?? "";
 
     const reply = await interaction.editReply({
       embeds: [buildOverviewEmbed(char)],
-      components: [buildButtons(char, "overview")],
+      components: buildComponents(char, "overview", activeWeapon),
     });
 
     const collector = reply.createMessageComponentCollector({
-      componentType: ComponentType.Button,
       time: COLLECTOR_TIMEOUT,
     });
 
-    collector.on("collect", async (btn: ButtonInteraction) => {
-      // Only the command author can navigate
-      if (btn.user.id !== interaction.user.id) {
-        await btn.reply({ content: "Utilise `/character` pour ta propre recherche.", ephemeral: true });
+    collector.on("collect", async (i) => {
+      if (i.user.id !== interaction.user.id) {
+        await i.reply({ content: "Utilise `/character` pour ta propre recherche.", ephemeral: true });
         return;
       }
 
-      const page = btn.customId.split(":")[2] as Page;
+      if (i.isButton()) {
+        const page = i.customId.split(":")[2] as Page;
 
-      await btn.update({
-        embeds: [getEmbed(char, page)],
-        components: [buildButtons(char, page)],
-      });
+        if (page === "overview") {
+          await i.update({
+            embeds: [buildOverviewEmbed(char)],
+            components: buildComponents(char, "overview", activeWeapon),
+          });
+        } else {
+          await i.update({
+            embeds: [buildSkillsEmbed(char, activeWeapon)],
+            components: buildComponents(char, "skills", activeWeapon),
+          });
+        }
+      }
+
+      if (i.isStringSelectMenu()) {
+        activeWeapon = i.values[0];
+        await i.update({
+          embeds: [buildSkillsEmbed(char, activeWeapon)],
+          components: buildComponents(char, "skills", activeWeapon),
+        });
+      }
     });
 
     collector.on("end", async () => {
-      // Disable buttons after timeout
       try {
-        const disabledRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-          new ButtonBuilder()
-            .setCustomId("char:expired:overview")
-            .setLabel("Vue d'ensemble")
-            .setEmoji("📊")
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(true),
-          new ButtonBuilder()
-            .setCustomId("char:expired:skills")
-            .setLabel("Skills")
-            .setEmoji("⚔️")
-            .setStyle(ButtonStyle.Secondary)
-            .setDisabled(true),
-          new ButtonBuilder()
-            .setLabel("Fiche complète")
-            .setURL(char.url)
-            .setStyle(ButtonStyle.Link)
-            .setEmoji("🔗"),
-        );
-        await interaction.editReply({ components: [disabledRow] });
+        await interaction.editReply({ components: [buildExpiredComponents(char)] });
       } catch { /* message may have been deleted */ }
     });
   } catch (err) {
