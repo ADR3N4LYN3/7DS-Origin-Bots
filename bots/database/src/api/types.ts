@@ -52,6 +52,13 @@ export interface CharacterStats {
   pvpDmgDown: number;
 }
 
+export interface CharacterStatsRaw {
+  hp: number;
+  atk: number;
+  def: number;
+  spd: number;
+}
+
 export interface CharacterData {
   slug: string;
   name: string;
@@ -61,6 +68,7 @@ export interface CharacterData {
   element: string;
   role: string;
   imageUrl: string;
+  statsRaw: CharacterStatsRaw;
   stats: CharacterStats;
   weaponSlots: WeaponSlot[];
   adventureSkill: AdventureSkill[];

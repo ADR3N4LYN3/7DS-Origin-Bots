@@ -53,6 +53,10 @@ function fmt(n: number): string {
   return n.toLocaleString("fr-FR");
 }
 
+function pct(n: number): string {
+  return Number.isInteger(n) ? `${n}%` : `${n.toFixed(1)}%`;
+}
+
 function tree(items: string[]): string {
   return items.map((item, i) =>
     `${i < items.length - 1 ? "├" : "└"} ${item}`,
@@ -96,17 +100,17 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
     `❤️ PV *${fmt(s.hp)}*`,
     `⚔️ ATK *${fmt(s.atk)}*`,
     `🛡️ DEF *${fmt(s.def)}*`,
-    `💨 SPD *${s.spd}*`,
+    `🏃 Vitesse *${fmt(s.spd)}*`,
   ];
 
   const secItems: string[] = [];
-  if (s.critRate) secItems.push(`Crit *${s.critRate}%*`);
-  if (s.critDamage) secItems.push(`Crit DMG *${s.critDamage}%*`);
-  if (s.accuracy) secItems.push(`Préc. *${s.accuracy}%*`);
-  if (s.block) secItems.push(`Bloc *${s.block}%*`);
+  if (s.critRate) secItems.push(`Crit *${pct(s.critRate)}*`);
+  if (s.critDamage) secItems.push(`Crit DMG *${pct(s.critDamage)}*`);
+  if (s.accuracy) secItems.push(`Préc. *${pct(s.accuracy)}*`);
+  if (s.block) secItems.push(`Bloc *${pct(s.block)}*`);
 
   embed.addFields(
-    { name: "📊 Stats :", value: tree(statItems), inline: true },
+    { name: "📊 Stats (base) :", value: tree(statItems), inline: true },
   );
 
   if (secItems.length > 0) {
