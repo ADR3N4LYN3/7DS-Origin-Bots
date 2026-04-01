@@ -25,6 +25,18 @@ const ELEMENT_EMOJIS: Record<string, string> = {
   "Sacré": "✨", "HOLY": "✨",
 };
 
+// Unicode fallbacks for autocomplete (Discord doesn't render custom emojis there)
+const ELEMENT_UNICODE: Record<string, string> = {
+  "Feu": "🔥", "FIRE": "🔥",
+  "Glace": "🧊", "ICE": "🧊",
+  "Lumière": "☀️", "LIGHT": "☀️",
+  "Ténèbres": "🌑", "DARK": "🌑",
+  "Vent": "🌪️", "WIND": "🌪️",
+  "Terre": "🌿", "EARTH": "🌿",
+  "Foudre": "⚡", "THUNDER": "⚡", "LIGHTNING": "⚡",
+  "Sacré": "✨", "HOLY": "✨",
+};
+
 const ROLE_LABELS: Record<string, string> = {
   "ATTACKER": "Attaquant", "Attaquant": "Attaquant",
   "DEFENDER": "Défenseur", "Défenseur": "Défenseur",
@@ -243,7 +255,7 @@ function buildWeaponSelectRow(char: CharacterData, activeWeapon: string): Action
     .setPlaceholder("Choisir une arme")
     .addOptions(
       weaponTypes.map((wt) => ({
-        label: (WEAPON_LABELS[wt] ?? wt).replace(/^[^\w]*\s*/, ""), // strip leading emoji for label
+        label: (WEAPON_LABELS[wt] ?? wt).replace(/^\p{So}[\uFE0F]?\s*/u, ""), // strip leading emoji for label
         value: wt,
         emoji: WEAPON_SELECT_EMOJIS[wt] ?? "⚔️",
         default: wt === activeWeapon,
@@ -318,7 +330,7 @@ export async function handleCharacterAutocomplete(
     const results = await apiClient.searchCharacters(focused);
     await interaction.respond(
       results.slice(0, 25).map((c) => {
-        const elem = ELEMENT_EMOJIS[c.element] ?? "";
+        const elem = ELEMENT_UNICODE[c.element] ?? "";
         const label = c.name !== c.nameEn ? `${c.name} / ${c.nameEn}` : c.name;
         return { name: `${elem} ${label}  [${c.rarity}]`, value: c.slug };
       }),
