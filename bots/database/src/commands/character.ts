@@ -53,7 +53,7 @@ const RARITY_EMOJIS: Record<string, string> = {
 };
 
 const WEAPON_LABELS: Record<string, string> = {
-  "Sword1h": "🗡️ Épée 1H", "SwordDual": "⚔️ Doubles épées", "Sword2h": "🔱 Épée 2H",
+  "Sword1h": "🗡️ Épée 1 main", "SwordDual": "⚔️ Doubles épées", "Sword2h": "🔱 Épée 2 mains",
   "Bow": "🏹 Arc", "Staff": "🪄 Bâton", "Dagger": "🔪 Dague",
   "Spear": "🔱 Lance", "Axe": "🪓 Hache", "Mace": "🔨 Masse", "Shield": "🛡️ Bouclier",
 };
@@ -185,16 +185,26 @@ function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder
     for (const sk of skills) {
       const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
       const cd = sk.cooldown ? ` · CD ${sk.cooldown}s` : "";
-      const dmg = sk.damagePercent ? `\n> DMG ${sk.damagePercent}` : "";
-      const hits = sk.hitCount > 0 ? ` × ${sk.hitCount} hits` : "";
-      const desc = sk.description ? `\n> *${clean(sk.description).split("\n")[0].slice(0, 150)}*` : "";
+
+      // ANSI colored stats line: orange for damage, cyan for hits
+      const statsAnsi: string[] = [];
+      if (sk.damagePercent) statsAnsi.push(`\u001b[1;33m${sk.damagePercent} ATK\u001b[0m`);
+      if (sk.hitCount > 0) statsAnsi.push(`\u001b[1;36m${sk.hitCount} hit${sk.hitCount > 1 ? "s" : ""}\u001b[0m`);
+      const statsBlock = statsAnsi.length > 0
+        ? "\n```ansi\n" + statsAnsi.join(" × ") + "\n```"
+        : "";
+
+      const desc = sk.description
+        ? `> *${clean(sk.description).split("\n")[0].slice(0, 150)}*\n`
+        : "";
+
       const buffs = sk.buffs?.length > 0
-        ? "\n" + sk.buffs.map((b) => `> 🔸 ${b.nameFr}`).join("\n")
+        ? sk.buffs.map((b) => `> 🟢 ${b.nameFr}`).join("\n") + "\n"
         : "";
 
       embed.addFields({
         name: `${cat} — ${sk.name}`,
-        value: `${weaponName}${cd}${dmg}${hits}${desc}${buffs}`,
+        value: `${weaponName}${cd}${statsBlock}${desc}${buffs}`,
       });
     }
   } else {
