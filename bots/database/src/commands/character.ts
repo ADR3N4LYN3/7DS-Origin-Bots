@@ -52,6 +52,17 @@ const SKILL_CATEGORIES: Record<string, string> = {
   "PASSIVE": "Passif",
 };
 
+// Clean color tags like [#1A7331]text[-] → text
+function cleanColorTags(text: string): string {
+  return text.replace(/\[#[0-9A-Fa-f]{6}]/g, "").replace(/\[-]/g, "");
+}
+
+// Truncate to fit Discord's 1024 char field limit
+function truncateField(text: string, max = 1024): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 3) + "...";
+}
+
 function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
   const elementEmoji = ELEMENT_EMOJIS[char.element] ?? "🔮";
   const roleEmoji = ROLE_EMOJIS[char.role] ?? "👤";
@@ -85,13 +96,14 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
       const cat = SKILL_CATEGORIES[s.category] ?? s.category;
       const cd = s.cooldown ? `  •  CD: ${s.cooldown}s` : "";
       const dmg = s.damagePercent ? `  •  ${s.damagePercent}` : "";
-      return `> **${s.name}** *(${cat}${cd}${dmg})*\n> ${s.description}`;
+      const desc = cleanColorTags(s.description).split("\n")[0]; // first line only
+      return `> **${s.name}** *(${cat}${cd}${dmg})*\n> ${desc}`;
     })
     .join("\n\n");
 
   // Adventure skills
   const adventureBlock = char.adventureSkill.length > 0
-    ? char.adventureSkill.map((s) => `> **${s.name}** — ${s.description}`).join("\n")
+    ? char.adventureSkill.map((s) => `> **${s.name}** — ${cleanColorTags(s.description).split("\n")[0]}`).join("\n")
     : null;
 
   const embed = new EmbedBuilder()
@@ -100,7 +112,7 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
     .setURL(char.url)
     .setDescription(
       `${elementEmoji} ${char.element}  •  ${roleEmoji} ${char.role}  •  ⭐ ${char.rarity}\n\n` +
-      (char.description ? `*${char.description.slice(0, 200)}${char.description.length > 200 ? "..." : ""}*` : ""),
+      (char.description ? `*${cleanColorTags(char.description).slice(0, 200)}${char.description.length > 200 ? "..." : ""}*` : ""),
     )
     .addFields(
       { name: "📊 Stats", value: statsLines.join("\n") },
@@ -108,11 +120,11 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
     );
 
   if (adventureBlock) {
-    embed.addFields({ name: "🏕️ Passif d'aventure", value: adventureBlock });
+    embed.addFields({ name: "🏕️ Passif d'aventure", value: truncateField(adventureBlock) });
   }
 
   if (skillsBlock) {
-    embed.addFields({ name: "⚔️ Compétences", value: skillsBlock });
+    embed.addFields({ name: "⚔️ Compétences", value: truncateField(skillsBlock) });
   }
 
   if (char.imageUrl) embed.setThumbnail(char.imageUrl);
