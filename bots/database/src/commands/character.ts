@@ -5,20 +5,94 @@ import {
   EmbedBuilder,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
+import type { CharacterData } from "../api/types.js";
 
-// Placeholder data for autocomplete until API is ready
-const PLACEHOLDER_CHARACTERS = [
-  { id: "meliodas", name: "Meliodas", nameEn: "Meliodas" },
-  { id: "elizabeth", name: "Elizabeth", nameEn: "Elizabeth" },
-  { id: "ban", name: "Ban", nameEn: "Ban" },
-  { id: "king", name: "King", nameEn: "King" },
-  { id: "diane", name: "Diane", nameEn: "Diane" },
-  { id: "gowther", name: "Gowther", nameEn: "Gowther" },
-  { id: "merlin", name: "Merlin", nameEn: "Merlin" },
-  { id: "escanor", name: "Escanor", nameEn: "Escanor" },
-  { id: "zeldris", name: "Zeldris", nameEn: "Zeldris" },
-  { id: "estarossa", name: "Estarossa", nameEn: "Estarossa" },
+// Placeholder data until API is ready
+const PLACEHOLDER_CHARACTERS: CharacterData[] = [
+  {
+    id: "meliodas",
+    name: "Meliodas",
+    nameEn: "Meliodas",
+    rarity: "SSR",
+    element: "Feu",
+    imageUrl: "https://7dsorigin.app/images/characters/meliodas.png",
+    stats: { hp: 12450, attack: 3520, defense: 2180, speed: 185 },
+    skills: [
+      { name: "Full Counter", description: "Renvoie 2x les dégâts reçus à l'ennemi" },
+      { name: "Lame Démoniaque", description: "Inflige 350% de dégâts à un ennemi" },
+    ],
+    url: "https://7dsorigin.app/characters/meliodas",
+  },
+  {
+    id: "escanor",
+    name: "Escanor",
+    nameEn: "Escanor",
+    rarity: "SSR",
+    element: "Lumière",
+    imageUrl: "https://7dsorigin.app/images/characters/escanor.png",
+    stats: { hp: 11800, attack: 4100, defense: 1950, speed: 160 },
+    skills: [
+      { name: "Sunshine", description: "Augmente l'ATK de 50% pendant 3 tours" },
+      { name: "Cruel Sun", description: "Inflige 400% de dégâts de zone" },
+    ],
+    url: "https://7dsorigin.app/characters/escanor",
+  },
+  {
+    id: "ban",
+    name: "Ban",
+    nameEn: "Ban",
+    rarity: "SSR",
+    element: "Glace",
+    imageUrl: "https://7dsorigin.app/images/characters/ban.png",
+    stats: { hp: 13200, attack: 3100, defense: 2400, speed: 170 },
+    skills: [
+      { name: "Snatch", description: "Vole 30% des stats de l'ennemi" },
+      { name: "Hunter Fest", description: "Draine la vie de tous les ennemis" },
+    ],
+    url: "https://7dsorigin.app/characters/ban",
+  },
 ];
+
+const ELEMENT_EMOJIS: Record<string, string> = {
+  "Feu": "🔥",
+  "Glace": "❄️",
+  "Lumière": "☀️",
+  "Ténèbres": "🌑",
+  "Vent": "🌪️",
+  "Terre": "🌿",
+  "Foudre": "⚡",
+};
+
+function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
+  const elementEmoji = ELEMENT_EMOJIS[char.element] ?? "🔮";
+
+  const statsBlock = [
+    `❤️ HP: **${char.stats.hp.toLocaleString()}**`,
+    `⚔️ ATK: **${char.stats.attack.toLocaleString()}**`,
+    `🛡️ DEF: **${char.stats.defense.toLocaleString()}**`,
+    `💨 SPD: **${char.stats.speed}**`,
+  ].join("   ");
+
+  const skillsBlock = char.skills
+    .map((s) => `> **${s.name}**\n> ${s.description}`)
+    .join("\n\n");
+
+  const embed = new EmbedBuilder()
+    .setColor(0xc9a84c)
+    .setTitle(`${char.name} / ${char.nameEn}`)
+    .setDescription(`${elementEmoji} ${char.element}  •  ⭐ ${char.rarity}`)
+    .addFields(
+      { name: "📊 Stats", value: statsBlock },
+      { name: "⚔️ Compétences", value: skillsBlock },
+    )
+    .setFooter({ text: "7DS Origin" })
+    .setTimestamp();
+
+  if (char.imageUrl) embed.setThumbnail(char.imageUrl);
+  if (char.url) embed.setURL(char.url);
+
+  return embed;
+}
 
 export function buildCharacterCommand() {
   return new SlashCommandBuilder()
@@ -69,15 +143,6 @@ export async function handleCharacterCommand(
     return;
   }
 
-  const embed = new EmbedBuilder()
-    .setColor(0xc9a84c)
-    .setTitle(`${character.name} / ${character.nameEn}`)
-    .setDescription(
-      "🚧 **API en cours de développement**\n\n" +
-      "Les données détaillées (stats, compétences, équipement) seront disponibles " +
-      "dès que l'API [7dsorigin.app](https://7dsorigin.app) sera prête.",
-    )
-    .setFooter({ text: "7DS Origin" });
-
+  const embed = buildCharacterEmbed(character);
   await interaction.reply({ embeds: [embed] });
 }
