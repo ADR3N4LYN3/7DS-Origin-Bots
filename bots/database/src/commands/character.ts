@@ -26,14 +26,11 @@ const ELEMENT_EMOJIS: Record<string, string> = {
 const ROLE_LABELS: Record<string, string> = {
   "ATTACKER": "Attaquant", "Attaquant": "Attaquant",
   "DEFENDER": "Défenseur", "Défenseur": "Défenseur",
-  "SUPPORT": "Support",
-  "HEALER": "Soigneur",
+  "SUPPORT": "Support", "HEALER": "Soigneur",
 };
 
 const RARITY_COLORS: Record<string, number> = {
-  "SSR": 0xffd700,
-  "SR": 0xc084fc,
-  "R": 0x60a5fa,
+  "SSR": 0xffd700, "SR": 0xc084fc, "R": 0x60a5fa,
 };
 
 const WEAPON_LABELS: Record<string, string> = {
@@ -47,8 +44,6 @@ const SKILL_CATEGORIES: Record<string, string> = {
   "ULTIMATE": "Ultime", "PASSIVE": "Passif",
   "ACTIVE_THIRD": "Spéciale", "TAG_SKILL": "Tag",
 };
-
-// ── Helpers ─────────────────────────────────────────────────────────
 
 function clean(text: string): string {
   return text.replace(/\[#[0-9A-Fa-f]{6}]/g, "").replace(/\[-]/g, "");
@@ -70,100 +65,55 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
     ? `${char.name} / ${char.nameEn}`
     : char.name;
 
-  // ── Description : header + stats + armes (tout dans le pool 4096) ──
-
+  // ── Description ──
   const weapons = char.weaponSlots
     .map((w) => WEAPON_LABELS[w.weapon] ?? w.weapon)
     .join(" · ");
 
-  const secondary: string[] = [];
-  if (s.critRate) secondary.push(`Crit **${s.critRate}%**`);
-  if (s.critDamage) secondary.push(`Crit DMG **${s.critDamage}%**`);
-  if (s.accuracy) secondary.push(`Préc. **${s.accuracy}%**`);
-  if (s.block) secondary.push(`Bloc **${s.block}%**`);
-
-  const descParts = [
-    `${elemEmoji} **${char.element}** · **${role}** · **${char.rarity}**`,
+  const desc = [
+    `${elemEmoji} **${char.element}** · **${role}**`,
     "",
-    "```",
-    `  PV  ${fmt(s.hp).padStart(8)}    ATK ${fmt(s.atk).padStart(8)}`,
-    `  DEF ${fmt(s.def).padStart(8)}    SPD ${String(s.spd).padStart(8)}`,
-    "```",
+    `❤️ **${fmt(s.hp)}**  ⚔️ **${fmt(s.atk)}**  🛡️ **${fmt(s.def)}**  💨 **${s.spd}**`,
+    "",
+    `🗡️ ${weapons}`,
   ];
 
-  if (secondary.length > 0) {
-    descParts.push(secondary.join(" · "));
-  }
+  // ── Skills — une ligne par skill ──
+  const skillLines = char.skills.slice(0, 6).map((sk) => {
+    const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
+    const cd = sk.cooldown ? ` · ${sk.cooldown}s` : "";
+    return `╸ **${sk.name}** — *${cat}${cd}*`;
+  });
 
-  descParts.push("", `🗡️ **Armes :** ${weapons || "—"}`);
-
-  const description = descParts.join("\n");
-
-  // ── Build embed ──
+  // ── Adventure ──
+  const adventureLines = char.adventureSkill
+    .map((a) => `╸ **${a.name}** — ${clean(a.description).split("\n")[0].slice(0, 80)}`);
 
   const embed = new EmbedBuilder()
     .setColor(color)
-    .setAuthor({
-      name: `${char.rarity} · ${char.element} · ${role}`,
-      iconURL: char.imageUrl || undefined,
-    })
     .setTitle(title)
     .setURL(char.url)
-    .setDescription(description)
+    .setDescription(desc.join("\n"))
     .setThumbnail(char.imageUrl || null);
 
-  // ── Passif d'aventure (1 field) ──
-
-  if (char.adventureSkill.length > 0) {
-    const adventureText = char.adventureSkill
-      .map((a) => `**${a.name}**\n${clean(a.description).split("\n")[0]}`)
-      .join("\n\n");
-
+  if (adventureLines.length > 0) {
     embed.addFields({
-      name: "🏕️ Passif d'aventure",
-      value: adventureText.slice(0, 1024),
+      name: "🏕️ Aventure",
+      value: adventureLines.join("\n"),
+      inline: true,
     });
   }
 
-  // ── Compétences (1 field par skill, max 6) ──
-
-  const skills = char.skills.slice(0, 6);
-
-  if (skills.length > 0) {
-    // Première skill avec le header "Compétences"
-    const first = skills[0];
+  if (skillLines.length > 0) {
     embed.addFields({
-      name: `⚔️ ${first.name}`,
-      value: formatSkillValue(first),
+      name: `⚔️ Compétences (${skillLines.length})`,
+      value: skillLines.join("\n"),
     });
-
-    // Les suivantes
-    for (let i = 1; i < skills.length; i++) {
-      embed.addFields({
-        name: skills[i].name,
-        value: formatSkillValue(skills[i]),
-      });
-    }
   }
 
   embed.setFooter({ text: "7DS Origin · 7dsorigin.app" });
-  embed.setTimestamp();
 
   return embed;
-}
-
-function formatSkillValue(sk: CharacterData["skills"][0]): string {
-  const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
-  const cd = sk.cooldown ? ` · ${sk.cooldown}s` : "";
-  const meta = `*${cat}${cd}*`;
-
-  const desc = clean(sk.description)
-    .split("\n")
-    .filter((l) => l.trim().length > 0)
-    .slice(0, 2) // max 2 lines
-    .join("\n");
-
-  return `${meta}\n${desc.slice(0, 200)}`;
 }
 
 // ── Command ─────────────────────────────────────────────────────────
