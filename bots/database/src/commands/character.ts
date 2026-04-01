@@ -3,93 +3,121 @@ import {
   ChatInputCommandInteraction,
   AutocompleteInteraction,
   EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
 import type { CharacterData } from "../api/types.js";
 
-// Placeholder data until API is ready
-const PLACEHOLDER_CHARACTERS: CharacterData[] = [
-  {
-    id: "meliodas",
-    name: "Meliodas",
-    nameEn: "Meliodas",
-    rarity: "SSR",
-    element: "Feu",
-    imageUrl: "https://7dsorigin.app/images/characters/meliodas.png",
-    stats: { hp: 12450, attack: 3520, defense: 2180, speed: 185 },
-    skills: [
-      { name: "Full Counter", description: "Renvoie 2x les dégâts reçus à l'ennemi" },
-      { name: "Lame Démoniaque", description: "Inflige 350% de dégâts à un ennemi" },
-    ],
-    url: "https://7dsorigin.app/characters/meliodas",
-  },
-  {
-    id: "escanor",
-    name: "Escanor",
-    nameEn: "Escanor",
-    rarity: "SSR",
-    element: "Lumière",
-    imageUrl: "https://7dsorigin.app/images/characters/escanor.png",
-    stats: { hp: 11800, attack: 4100, defense: 1950, speed: 160 },
-    skills: [
-      { name: "Sunshine", description: "Augmente l'ATK de 50% pendant 3 tours" },
-      { name: "Cruel Sun", description: "Inflige 400% de dégâts de zone" },
-    ],
-    url: "https://7dsorigin.app/characters/escanor",
-  },
-  {
-    id: "ban",
-    name: "Ban",
-    nameEn: "Ban",
-    rarity: "SSR",
-    element: "Glace",
-    imageUrl: "https://7dsorigin.app/images/characters/ban.png",
-    stats: { hp: 13200, attack: 3100, defense: 2400, speed: 170 },
-    skills: [
-      { name: "Snatch", description: "Vole 30% des stats de l'ennemi" },
-      { name: "Hunter Fest", description: "Draine la vie de tous les ennemis" },
-    ],
-    url: "https://7dsorigin.app/characters/ban",
-  },
-];
-
 const ELEMENT_EMOJIS: Record<string, string> = {
-  "Feu": "🔥",
-  "Glace": "❄️",
-  "Lumière": "☀️",
-  "Ténèbres": "🌑",
-  "Vent": "🌪️",
-  "Terre": "🌿",
-  "Foudre": "⚡",
+  "Feu": "🔥", "FIRE": "🔥",
+  "Glace": "❄️", "ICE": "❄️",
+  "Lumière": "☀️", "LIGHT": "☀️",
+  "Ténèbres": "🌑", "DARK": "🌑",
+  "Vent": "🌪️", "WIND": "🌪️",
+  "Terre": "🌿", "EARTH": "🌿",
+  "Foudre": "⚡", "LIGHTNING": "⚡",
+};
+
+const ROLE_EMOJIS: Record<string, string> = {
+  "Attaquant": "⚔️", "ATTACKER": "⚔️",
+  "Défenseur": "🛡️", "DEFENDER": "🛡️",
+  "Support": "💚", "SUPPORT": "💚",
+  "Soigneur": "💖", "HEALER": "💖",
+};
+
+const RARITY_COLORS: Record<string, number> = {
+  "SSR": 0xffd700,
+  "SR": 0xc084fc,
+  "R": 0x60a5fa,
+};
+
+const WEAPON_NAMES: Record<string, string> = {
+  "Sword1h": "Épée 1H",
+  "SwordDual": "Doubles épées",
+  "Sword2h": "Épée 2H",
+  "Bow": "Arc",
+  "Staff": "Bâton",
+  "Dagger": "Dague",
+  "Spear": "Lance",
+  "Axe": "Hache",
+  "Mace": "Masse",
+  "Shield": "Bouclier",
+};
+
+const SKILL_CATEGORIES: Record<string, string> = {
+  "NORMAL_SKILL": "Normal",
+  "ULTIMATE": "Ultime",
+  "PASSIVE": "Passif",
 };
 
 function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
   const elementEmoji = ELEMENT_EMOJIS[char.element] ?? "🔮";
+  const roleEmoji = ROLE_EMOJIS[char.role] ?? "👤";
+  const color = RARITY_COLORS[char.rarity] ?? 0xc9a84c;
 
-  const statsBlock = [
-    `❤️ HP: **${char.stats.hp.toLocaleString()}**`,
-    `⚔️ ATK: **${char.stats.attack.toLocaleString()}**`,
-    `🛡️ DEF: **${char.stats.defense.toLocaleString()}**`,
-    `💨 SPD: **${char.stats.speed}**`,
-  ].join("   ");
+  // Stats principales
+  const statsLines = [
+    `❤️ HP **${char.stats.hp.toLocaleString()}**  ⚔️ ATK **${char.stats.atk.toLocaleString()}**`,
+    `🛡️ DEF **${char.stats.def.toLocaleString()}**  💨 SPD **${char.stats.spd}**`,
+  ];
 
+  // Stats secondaires (seulement si non-zéro)
+  const secondaryStats: string[] = [];
+  if (char.stats.critRate) secondaryStats.push(`Crit ${char.stats.critRate}%`);
+  if (char.stats.critDamage) secondaryStats.push(`Crit DMG ${char.stats.critDamage}%`);
+  if (char.stats.accuracy) secondaryStats.push(`Précision ${char.stats.accuracy}%`);
+  if (char.stats.block) secondaryStats.push(`Bloc ${char.stats.block}%`);
+  if (secondaryStats.length > 0) {
+    statsLines.push(secondaryStats.join("  •  "));
+  }
+
+  // Armes
+  const weaponList = char.weaponSlots
+    .map((w) => WEAPON_NAMES[w.weapon] ?? w.weapon)
+    .join(", ");
+
+  // Skills (max 5 pour pas dépasser la limite embed)
   const skillsBlock = char.skills
-    .map((s) => `> **${s.name}**\n> ${s.description}`)
+    .slice(0, 5)
+    .map((s) => {
+      const cat = SKILL_CATEGORIES[s.category] ?? s.category;
+      const cd = s.cooldown ? `  •  CD: ${s.cooldown}s` : "";
+      const dmg = s.damagePercent ? `  •  ${s.damagePercent}` : "";
+      return `> **${s.name}** *(${cat}${cd}${dmg})*\n> ${s.description}`;
+    })
     .join("\n\n");
 
+  // Adventure skills
+  const adventureBlock = char.adventureSkill.length > 0
+    ? char.adventureSkill.map((s) => `> **${s.name}** — ${s.description}`).join("\n")
+    : null;
+
   const embed = new EmbedBuilder()
-    .setColor(0xc9a84c)
+    .setColor(color)
     .setTitle(`${char.name} / ${char.nameEn}`)
-    .setDescription(`${elementEmoji} ${char.element}  •  ⭐ ${char.rarity}`)
-    .addFields(
-      { name: "📊 Stats", value: statsBlock },
-      { name: "⚔️ Compétences", value: skillsBlock },
+    .setURL(char.url)
+    .setDescription(
+      `${elementEmoji} ${char.element}  •  ${roleEmoji} ${char.role}  •  ⭐ ${char.rarity}\n\n` +
+      (char.description ? `*${char.description.slice(0, 200)}${char.description.length > 200 ? "..." : ""}*` : ""),
     )
-    .setFooter({ text: "7DS Origin" })
-    .setTimestamp();
+    .addFields(
+      { name: "📊 Stats", value: statsLines.join("\n") },
+      { name: "🗡️ Armes", value: weaponList || "—", inline: true },
+    );
+
+  if (adventureBlock) {
+    embed.addFields({ name: "🏕️ Passif d'aventure", value: adventureBlock });
+  }
+
+  if (skillsBlock) {
+    embed.addFields({ name: "⚔️ Compétences", value: skillsBlock });
+  }
 
   if (char.imageUrl) embed.setThumbnail(char.imageUrl);
-  if (char.url) embed.setURL(char.url);
+  embed.setFooter({ text: "7DS Origin" });
+  embed.setTimestamp();
 
   return embed;
 }
@@ -109,40 +137,48 @@ export function buildCharacterCommand() {
 
 export async function handleCharacterAutocomplete(
   interaction: AutocompleteInteraction,
-  _apiClient: ApiClient,
+  apiClient: ApiClient,
 ) {
-  const focused = interaction.options.getFocused().toLowerCase();
+  const focused = interaction.options.getFocused();
 
-  // TODO: Replace with apiClient.searchCharacters() when API is ready
-  const filtered = PLACEHOLDER_CHARACTERS
-    .filter((c) =>
-      c.name.toLowerCase().includes(focused) ||
-      c.nameEn.toLowerCase().includes(focused),
-    )
-    .slice(0, 25);
-
-  await interaction.respond(
-    filtered.map((c) => ({
-      name: `${c.name} / ${c.nameEn}`,
-      value: c.id,
-    })),
-  );
+  try {
+    const results = await apiClient.searchCharacters(focused);
+    await interaction.respond(
+      results.slice(0, 25).map((c) => ({
+        name: `${c.name} / ${c.nameEn}  [${c.rarity}]`,
+        value: c.slug,
+      })),
+    );
+  } catch (err) {
+    console.error("Autocomplete error:", err);
+    await interaction.respond([]);
+  }
 }
 
 export async function handleCharacterCommand(
   interaction: ChatInputCommandInteraction,
-  _apiClient: ApiClient,
+  apiClient: ApiClient,
 ) {
-  const characterId = interaction.options.getString("name", true);
+  const slug = interaction.options.getString("name", true);
 
-  // TODO: Replace with apiClient.getCharacter(characterId) when API is ready
-  const character = PLACEHOLDER_CHARACTERS.find((c) => c.id === characterId);
+  await interaction.deferReply();
 
-  if (!character) {
-    await interaction.reply({ content: "❌ Personnage introuvable.", flags: 64 });
-    return;
+  try {
+    const character = await apiClient.getCharacter(slug);
+
+    const embed = buildCharacterEmbed(character);
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setLabel("Voir sur 7dsorigin.app")
+        .setURL(character.url)
+        .setStyle(ButtonStyle.Link)
+        .setEmoji("🔗"),
+    );
+
+    await interaction.editReply({ embeds: [embed], components: [row] });
+  } catch (err) {
+    console.error("Character fetch error:", err);
+    await interaction.editReply({ content: "❌ Personnage introuvable ou erreur API." });
   }
-
-  const embed = buildCharacterEmbed(character);
-  await interaction.reply({ embeds: [embed] });
 }

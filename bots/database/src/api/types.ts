@@ -1,40 +1,69 @@
-export interface CharacterData {
-  id: string;
+export interface CharacterSearchResult {
+  slug: string;
   name: string;
   nameEn: string;
   rarity: string;
   element: string;
-  imageUrl: string;
-  stats: {
-    hp: number;
-    attack: number;
-    defense: number;
-    speed: number;
-  };
-  skills: {
-    name: string;
-    description: string;
-  }[];
-  url: string;
+  role: string;
 }
 
-export interface ItemData {
-  id: string;
+export interface CharacterBuff {
+  buffId: string;
+  buffType: string;
+  nameFr: string;
+}
+
+export interface CharacterSkill {
+  name: string;
+  description: string;
+  category: string;
+  weaponType: string;
+  cooldown: number;
+  damagePercent: string;
+  hitCount: number;
+  iconUrl: string;
+  buffs: CharacterBuff[];
+}
+
+export interface AdventureSkill {
+  name: string;
+  description: string;
+}
+
+export interface WeaponSlot {
+  weapon: string;
+  element: string;
+  role: string;
+}
+
+export interface CharacterStats {
+  hp: number;
+  atk: number;
+  def: number;
+  spd: number;
+  critRate: number;
+  critDamage: number;
+  accuracy: number;
+  block: number;
+  critResist: number;
+  critDmgResist: number;
+  blockDmgResist: number;
+  pvpDmgUp: number;
+  pvpDmgDown: number;
+}
+
+export interface CharacterData {
+  slug: string;
   name: string;
   nameEn: string;
   description: string;
   rarity: string;
+  element: string;
+  role: string;
   imageUrl: string;
-  url: string;
-}
-
-export interface EquipmentData {
-  id: string;
-  name: string;
-  nameEn: string;
-  type: string;
-  rarity: string;
-  stats: Record<string, number>;
-  imageUrl: string;
+  stats: CharacterStats;
+  weaponSlots: WeaponSlot[];
+  adventureSkill: AdventureSkill[];
+  skills: CharacterSkill[];
   url: string;
 }

@@ -20,11 +20,12 @@ process.on("unhandledRejection", (err) => {
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN!;
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
 const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID!;
-const API_BASE_URL = process.env.API_BASE_URL ?? "https://7dsorigin.app/api";
+const API_BASE_URL = process.env.API_BASE_URL ?? "https://7dsorigin.app/api/bot";
+const BOT_API_KEY = process.env.BOT_API_KEY!;
 
 // ── API client ──────────────────────────────────────────────────────
 
-const apiClient = new ApiClient(API_BASE_URL);
+const apiClient = new ApiClient(API_BASE_URL, BOT_API_KEY);
 
 // ── Discord client ───────────────────────────────────────────────────
 
