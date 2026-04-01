@@ -173,7 +173,7 @@ function buildSkillsEmbed(char: CharacterData): EmbedBuilder {
       const cd = sk.cooldown ? ` · CD ${sk.cooldown}s` : "";
       const dmg = sk.damagePercent ? ` · ${sk.damagePercent}` : "";
       const hits = sk.hitCount > 0 ? ` × ${sk.hitCount}` : "";
-      const buffs = sk.buffs.length > 0
+      const buffs = sk.buffs?.length > 0
         ? "\n" + sk.buffs.map((b) => `  🔸 ${b.nameFr}`).join("\n")
         : "";
 
