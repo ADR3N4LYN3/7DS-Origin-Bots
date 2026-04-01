@@ -22,8 +22,8 @@ const ELEMENT_EMOJIS: Record<string, string> = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  "ATTACKER": "Attaquant",
-  "DEFENDER": "Défenseur",
+  "ATTACKER": "Attaquant", "Attaquant": "Attaquant",
+  "DEFENDER": "Défenseur", "Défenseur": "Défenseur",
   "SUPPORT": "Support",
   "HEALER": "Soigneur",
 };
@@ -34,17 +34,17 @@ const RARITY_COLORS: Record<string, number> = {
   "R": 0x60a5fa,
 };
 
-const WEAPON_EMOJIS: Record<string, string> = {
-  "Sword1h": "🗡️ Épée 1H",
-  "SwordDual": "⚔️ Doubles épées",
-  "Sword2h": "🔱 Épée 2H",
-  "Bow": "🏹 Arc",
-  "Staff": "🪄 Bâton",
-  "Dagger": "🔪 Dague",
-  "Spear": "🔱 Lance",
-  "Axe": "🪓 Hache",
-  "Mace": "🔨 Masse",
-  "Shield": "🛡️ Bouclier",
+const WEAPON_LABELS: Record<string, string> = {
+  "Sword1h": "Épée 1H",
+  "SwordDual": "Doubles épées",
+  "Sword2h": "Épée 2H",
+  "Bow": "Arc",
+  "Staff": "Bâton",
+  "Dagger": "Dague",
+  "Spear": "Lance",
+  "Axe": "Hache",
+  "Mace": "Masse",
+  "Shield": "Bouclier",
 };
 
 const SKILL_CATEGORIES: Record<string, string> = {
@@ -56,104 +56,102 @@ const SKILL_CATEGORIES: Record<string, string> = {
   "TAG_SKILL": "Tag",
 };
 
-function cleanColorTags(text: string): string {
+function clean(text: string): string {
   return text.replace(/\[#[0-9A-Fa-f]{6}]/g, "").replace(/\[-]/g, "");
 }
 
-function truncateField(text: string, max = 1024): string {
+function truncate(text: string, max = 1024): string {
   if (text.length <= max) return text;
-  // Truncate at last complete line within limit
   const trimmed = text.slice(0, max - 4);
-  const lastNewline = trimmed.lastIndexOf("\n");
-  return (lastNewline > 0 ? trimmed.slice(0, lastNewline) : trimmed) + "\n...";
-}
-
-function formatNumber(n: number): string {
-  return n.toLocaleString("fr-FR");
+  const last = trimmed.lastIndexOf("\n");
+  return (last > 0 ? trimmed.slice(0, last) : trimmed) + "\n...";
 }
 
 function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
-  const elementEmoji = ELEMENT_EMOJIS[char.element] ?? "🔮";
+  const elemEmoji = ELEMENT_EMOJIS[char.element] ?? "🔮";
   const role = ROLE_LABELS[char.role] ?? char.role;
   const color = RARITY_COLORS[char.rarity] ?? 0xc9a84c;
 
-  // ── Header description ──
-  const descLines = [
-    `${elementEmoji} **${char.element}**  •  **${role}**  •  **${char.rarity}**`,
-  ];
+  const title = char.name !== char.nameEn
+    ? `${char.name} / ${char.nameEn}`
+    : char.name;
 
-  if (char.description) {
-    const clean = cleanColorTags(char.description).split("\n")[0];
-    descLines.push("", `*${clean.slice(0, 150)}${clean.length > 150 ? "..." : ""}*`);
-  }
+  // ── Subtitle ──
+  const subtitle = `${elemEmoji} ${char.element} **•** ${role}`;
 
-  // ── Stats block ──
-  const stats = char.stats;
-  const statsBlock = [
-    "```",
-    `HP  ${formatNumber(stats.hp).padStart(7)}   ATK ${formatNumber(stats.atk).padStart(7)}`,
-    `DEF ${formatNumber(stats.def).padStart(7)}   SPD ${String(stats.spd).padStart(7)}`,
-    "```",
+  // ── Weapons inline ──
+  const weapons = char.weaponSlots
+    .map((w) => WEAPON_LABELS[w.weapon] ?? w.weapon)
+    .join(" **·** ");
+
+  // ── Stats — two inline fields ──
+  const s = char.stats;
+  const statsLeft = [
+    `❤️ PV: **${s.hp.toLocaleString("fr-FR")}**`,
+    `⚔️ ATK: **${s.atk.toLocaleString("fr-FR")}**`,
   ].join("\n");
 
-  // Secondary stats (only non-zero, compact)
-  const secondary: string[] = [];
-  if (stats.critRate) secondary.push(`Crit **${stats.critRate}%**`);
-  if (stats.critDamage) secondary.push(`Crit DMG **${stats.critDamage}%**`);
-  if (stats.accuracy) secondary.push(`Préc. **${stats.accuracy}%**`);
-  if (stats.block) secondary.push(`Bloc **${stats.block}%**`);
-  const secondaryLine = secondary.length > 0 ? secondary.join("  •  ") : "";
+  const statsRight = [
+    `🛡️ DEF: **${s.def.toLocaleString("fr-FR")}**`,
+    `💨 SPD: **${s.spd}**`,
+  ].join("\n");
 
-  // ── Weapons ──
-  const weapons = char.weaponSlots
-    .map((w) => WEAPON_EMOJIS[w.weapon] ?? w.weapon)
-    .join("\n");
+  // ── Secondary stats ──
+  const sec: string[] = [];
+  if (s.critRate) sec.push(`Crit **${s.critRate}%**`);
+  if (s.critDamage) sec.push(`Crit DMG **${s.critDamage}%**`);
+  if (s.accuracy) sec.push(`Préc. **${s.accuracy}%**`);
+  if (s.block) sec.push(`Bloc **${s.block}%**`);
 
-  // ── Skills — compact format ──
-  const skillLines = char.skills.slice(0, 6).map((s) => {
-    const cat = SKILL_CATEGORIES[s.category] ?? s.category;
-    const cd = s.cooldown ? ` ${s.cooldown}s` : "";
-    const desc = cleanColorTags(s.description).split("\n")[0].slice(0, 80);
-    return `**${s.name}** — *${cat}${cd}*\n${desc}${s.description.length > 80 ? "..." : ""}`;
+  // ── Skills — compact, one per line ──
+  const skillLines = char.skills.slice(0, 6).map((sk) => {
+    const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
+    const cd = sk.cooldown ? ` · ${sk.cooldown}s` : "";
+    const desc = clean(sk.description).split("\n")[0].slice(0, 60);
+    return `╸ **${sk.name}** *${cat}${cd}*\n╸ ${desc}${sk.description.length > 60 ? "..." : ""}`;
   });
 
-  // ── Adventure skills ──
-  const adventureLines = char.adventureSkill.map((s) => {
-    const desc = cleanColorTags(s.description).split("\n")[0];
-    return `**${s.name}** — ${desc}`;
-  });
+  // ── Adventure skill ──
+  const adventure = char.adventureSkill.length > 0
+    ? char.adventureSkill.map((a) =>
+        `╸ **${a.name}** — ${clean(a.description).split("\n")[0].slice(0, 100)}`,
+      ).join("\n")
+    : null;
 
-  // ── Build embed ──
+  // ── Build ──
   const embed = new EmbedBuilder()
     .setColor(color)
-    .setAuthor({ name: `${char.rarity}  •  ${role}`, iconURL: char.imageUrl || undefined })
-    .setTitle(char.name !== char.nameEn ? `${char.name} / ${char.nameEn}` : char.name)
+    .setAuthor({
+      name: `${char.rarity} · ${char.element} · ${role}`,
+      iconURL: char.imageUrl || undefined,
+    })
+    .setTitle(title)
     .setURL(char.url)
-    .setDescription(descLines.join("\n"))
+    .setDescription(subtitle)
+    .setThumbnail(char.imageUrl || null)
     .addFields(
-      { name: "━━━ Stats ━━━", value: statsBlock + secondaryLine },
+      { name: "\u200B", value: `**__Stats__**`, inline: false },
+      { name: "\u200B", value: statsLeft, inline: true },
+      { name: "\u200B", value: statsRight, inline: true },
     );
 
-  if (weapons) {
-    embed.addFields({ name: "━━━ Armes ━━━", value: weapons });
+  if (sec.length > 0) {
+    embed.addFields({ name: "\u200B", value: sec.join(" · "), inline: false });
   }
 
-  if (adventureLines.length > 0) {
-    embed.addFields({
-      name: "━━━ Passif d'aventure ━━━",
-      value: truncateField(adventureLines.join("\n")),
-    });
+  embed.addFields(
+    { name: "🗡️ Armes", value: weapons || "—", inline: false },
+  );
+
+  if (adventure) {
+    embed.addFields({ name: "🏕️ Passif d'aventure", value: truncate(adventure) });
   }
 
   if (skillLines.length > 0) {
-    embed.addFields({
-      name: "━━━ Compétences ━━━",
-      value: truncateField(skillLines.join("\n\n")),
-    });
+    embed.addFields({ name: "⚔️ Compétences", value: truncate(skillLines.join("\n\n")) });
   }
 
-  if (char.imageUrl) embed.setThumbnail(char.imageUrl);
-  embed.setFooter({ text: "7DS Origin • 7dsorigin.app" });
+  embed.setFooter({ text: "7DS Origin · 7dsorigin.app" });
   embed.setTimestamp();
 
   return embed;
@@ -182,12 +180,9 @@ export async function handleCharacterAutocomplete(
     const results = await apiClient.searchCharacters(focused);
     await interaction.respond(
       results.slice(0, 25).map((c) => {
-        const element = ELEMENT_EMOJIS[c.element] ?? "";
+        const elem = ELEMENT_EMOJIS[c.element] ?? "";
         const label = c.name !== c.nameEn ? `${c.name} / ${c.nameEn}` : c.name;
-        return {
-          name: `${element} ${label}  [${c.rarity}]`,
-          value: c.slug,
-        };
+        return { name: `${elem} ${label}  [${c.rarity}]`, value: c.slug };
       }),
     );
   } catch (err) {
@@ -201,7 +196,6 @@ export async function handleCharacterCommand(
   apiClient: ApiClient,
 ) {
   const slug = interaction.options.getString("name", true);
-
   await interaction.deferReply();
 
   try {
@@ -210,7 +204,7 @@ export async function handleCharacterCommand(
 
     const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
-        .setLabel("Voir sur 7dsorigin.app")
+        .setLabel("Fiche complète")
         .setURL(character.url)
         .setStyle(ButtonStyle.Link)
         .setEmoji("🔗"),
