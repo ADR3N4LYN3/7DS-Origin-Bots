@@ -13,13 +13,13 @@ import type { CharacterData, CharacterSkill } from "../api/types.js";
 // ── Mappings ────────────────────────────────────────────────────────
 
 const ELEMENT_EMOJIS: Record<string, string> = {
-  "Feu": "🔥", "FIRE": "🔥",
-  "Glace": "❄️", "ICE": "❄️",
-  "Lumière": "☀️", "LIGHT": "☀️",
-  "Ténèbres": "🌑", "DARK": "🌑",
-  "Vent": "🌪️", "WIND": "🌪️",
-  "Terre": "🌿", "EARTH": "🌿",
-  "Foudre": "⚡", "THUNDER": "⚡", "LIGHTNING": "⚡",
+  "Feu": "<:Fire:1488554913406652486>", "FIRE": "<:Fire:1488554913406652486>",
+  "Glace": "<:Ice:1488555000790646884>", "ICE": "<:Ice:1488555000790646884>",
+  "Lumière": "<:Light:1488554768585719931>", "LIGHT": "<:Light:1488554768585719931>",
+  "Ténèbres": "<:Darkness:1488553687516319857>", "DARK": "<:Darkness:1488553687516319857>",
+  "Vent": "<:Wind:1488554876588789780>", "WIND": "<:Wind:1488554876588789780>",
+  "Terre": "<:Earth:1488554844599091294>", "EARTH": "<:Earth:1488554844599091294>",
+  "Foudre": "<:Thunder:1488554973838184518>", "THUNDER": "<:Thunder:1488554973838184518>", "LIGHTNING": "<:Thunder:1488554973838184518>",
   "Sacré": "✨", "HOLY": "✨",
 };
 
@@ -31,6 +31,11 @@ const ROLE_LABELS: Record<string, string> = {
 
 const RARITY_COLORS: Record<string, number> = {
   "SSR": 0xffd700, "SR": 0xc084fc, "R": 0x60a5fa,
+};
+
+const RARITY_EMOJIS: Record<string, string> = {
+  "SSR": "<:SSR:1488553581329256479>",
+  "SR": "<:SR:1488553611733762058>",
 };
 
 const WEAPON_LABELS: Record<string, string> = {
@@ -79,6 +84,7 @@ function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSki
 
 function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
   const elemEmoji = ELEMENT_EMOJIS[char.element] ?? "🔮";
+  const rarityEmoji = RARITY_EMOJIS[char.rarity] ?? "";
   const role = ROLE_LABELS[char.role] ?? char.role;
   const color = RARITY_COLORS[char.rarity] ?? 0xc9a84c;
   const s = char.stats;
@@ -88,7 +94,7 @@ function buildCharacterEmbed(char: CharacterData): EmbedBuilder {
     : char.name;
 
   // ── Description ──
-  const desc = [`${elemEmoji} ${char.element} & ${role}`, "", `**${title}**`];
+  const desc = [`${elemEmoji} ${char.element} & ${role} ${rarityEmoji}`, "", `**${title}**`];
 
   const embed = new EmbedBuilder()
     .setColor(color)
