@@ -1,4 +1,4 @@
-import { GuildMemberRoleManager, type GuildMember, type ChatInputCommandInteraction } from "discord.js";
+import { GuildMemberRoleManager, type ChatInputCommandInteraction } from "discord.js";
 
 export function hasAdminRole(interaction: ChatInputCommandInteraction, adminRoleId: string): boolean {
   const roles = interaction.member?.roles;

@@ -5,6 +5,7 @@ import {
   Partials,
   REST,
   Routes,
+  type ChatInputCommandInteraction,
   type Interaction,
 } from "discord.js";
 import { buildClearCommand, handleClearCommand } from "./commands/clear.js";
@@ -131,7 +132,7 @@ client.on("messageReactionRemove", async (reaction, user) => {
 
 // ── Slash command handling ───────────────────────────────────────────
 
-const COMMAND_HANDLERS: Record<string, (interaction: any) => Promise<void>> = {
+const COMMAND_HANDLERS: Record<string, (interaction: ChatInputCommandInteraction) => Promise<void>> = {
   clear: (i) => handleClearCommand(i, DISCORD_ADMIN_ROLE_ID),
   sondage: (i) => handleSondageCommand(i, DISCORD_ADMIN_ROLE_ID),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),

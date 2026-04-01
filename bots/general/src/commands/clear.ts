@@ -29,7 +29,12 @@ export async function handleClearCommand(
   }
 
   const nombre = interaction.options.getInteger("nombre", true);
-  const channel = interaction.channel as TextChannel;
+  const channel = interaction.channel;
+
+  if (!channel || !("bulkDelete" in channel)) {
+    await interaction.reply({ content: "❌ Cette commande ne peut pas être utilisée ici.", flags: 64 });
+    return;
+  }
 
   try {
     const deleted = await channel.bulkDelete(nombre, true);
