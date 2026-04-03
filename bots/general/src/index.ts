@@ -18,6 +18,9 @@ import { handleGuildMemberRemove } from "./events/leave.js";
 import { handleGuildMemberUpdate } from "./events/memberUpdate.js";
 import { handleGuildBanAdd, handleGuildBanRemove } from "./events/ban.js";
 import { initLogChannel } from "./events/log.js";
+import { handleMessageDelete } from "./events/messageDelete.js";
+import { handleMessageUpdate } from "./events/messageUpdate.js";
+import { handleVoiceStateUpdate } from "./events/voice.js";
 
 // ── Error handling ──────────────────────────────────────────────────
 
@@ -47,6 +50,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildVoiceStates,
   ],
   partials: [
     Partials.Message,
@@ -93,6 +97,18 @@ client.on("guildBanAdd", (ban) => {
 
 client.on("guildBanRemove", (ban) => {
   handleGuildBanRemove(ban);
+});
+
+client.on("messageDelete", (message) => {
+  handleMessageDelete(message);
+});
+
+client.on("messageUpdate", (oldMessage, newMessage) => {
+  handleMessageUpdate(oldMessage, newMessage);
+});
+
+client.on("voiceStateUpdate", (oldState, newState) => {
+  handleVoiceStateUpdate(oldState, newState);
 });
 
 // ── Reaction roles ──────────────────────────────────────────────────
