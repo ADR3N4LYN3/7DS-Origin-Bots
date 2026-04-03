@@ -14,6 +14,10 @@ import { buildReactionRoleCommand, handleReactionRoleCommand, loadReactionRoles 
 import { buildRepostCommand, handleRepostCommand } from "./commands/repost.js";
 import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
 import { handleGuildMemberAdd } from "./events/welcome.js";
+import { handleGuildMemberRemove } from "./events/leave.js";
+import { handleGuildMemberUpdate } from "./events/memberUpdate.js";
+import { handleGuildBanAdd, handleGuildBanRemove } from "./events/ban.js";
+import { initLogChannel } from "./events/log.js";
 
 // ── Error handling ──────────────────────────────────────────────────
 
@@ -31,6 +35,7 @@ const CHANNEL_RULES = process.env.CHANNEL_RULES || undefined;
 const CHANNEL_ROLES = process.env.CHANNEL_ROLES || undefined;
 const DISCORD_ADMIN_ROLE_ID = process.env.DISCORD_ADMIN_ROLE_ID!;
 const WELCOME_BANNER_URL = process.env.WELCOME_BANNER_URL || undefined;
+const CHANNEL_LOGS = process.env.CHANNEL_LOGS || undefined;
 
 // ── Discord client ───────────────────────────────────────────────────
 
@@ -41,6 +46,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildModeration,
   ],
   partials: [
     Partials.Message,
@@ -55,6 +61,7 @@ client.once("clientReady", (c) => {
     activities: [{ name: "7DS Origin", type: ActivityType.Watching }],
     status: "online",
   });
+  initLogChannel(c, CHANNEL_LOGS);
 });
 
 // ── Welcome event ───────────────────────────────────────────────────
@@ -68,6 +75,24 @@ const welcomeConfig = {
 
 client.on("guildMemberAdd", (member) => {
   handleGuildMemberAdd(member, welcomeConfig);
+});
+
+// ── Tracking events ────────────────────────────────────────────────
+
+client.on("guildMemberRemove", (member) => {
+  handleGuildMemberRemove(member);
+});
+
+client.on("guildMemberUpdate", (oldMember, newMember) => {
+  handleGuildMemberUpdate(oldMember, newMember);
+});
+
+client.on("guildBanAdd", (ban) => {
+  handleGuildBanAdd(ban);
+});
+
+client.on("guildBanRemove", (ban) => {
+  handleGuildBanRemove(ban);
 });
 
 // ── Reaction roles ──────────────────────────────────────────────────
