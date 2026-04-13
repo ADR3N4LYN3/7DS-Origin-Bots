@@ -52,17 +52,41 @@ const RARITY_EMOJIS: Record<string, string> = {
   "SR": "<:SR:1488553611733762058>",
 };
 
-const WEAPON_LABELS: Record<string, string> = {
-  "Sword1h": "🗡️ Épée 1 main", "SwordDual": "⚔️ Doubles épées", "Sword2h": "🔱 Épée 2 mains",
-  "Bow": "🏹 Arc", "Staff": "🪄 Bâton", "Dagger": "🔪 Dague",
-  "Spear": "🔱 Lance", "Axe": "🪓 Hache", "Mace": "🔨 Masse", "Shield": "🛡️ Bouclier",
+const WEAPON_EMOJIS: Record<string, string> = {
+  "Sword1h": "<:ItemDivision_sword1h:1493240454827999273>",
+  "SwordDual": "<:ItemDivision_sworddual:1493240457184935967>",
+  "Sword2h": "<:ItemDivision_sword2h:1493240455888896192>",
+  "Bow": "<:ItemDivision_rapier:1493240450533036053>",
+  "Staff": "<:ItemDivision_staff:1493240453053546646>",
+  "Dagger": "<:ItemDivision_rapier:1493240450533036053>",
+  "Spear": "<:ItemDivision_lance:1493240449123483728>",
+  "Axe": "<:ItemDivision_axe:1493240409412079647>",
+  "Mace": "<:ItemDivision_cudgel3c:1493240445856120866>",
+  "Shield": "<:ItemDivision_shield:1493240451866824724>",
+  "Wand": "<:ItemDivision_wand:1493240458502078595>",
+  "Book": "<:ItemDivision_book:1493240431985692754>",
+  "Gauntlets": "<:ItemDivision_gauntlets:1493240447202754670>",
 };
 
-const WEAPON_SELECT_EMOJIS: Record<string, string> = {
-  "Sword1h": "🗡️", "SwordDual": "⚔️", "Sword2h": "🔱",
-  "Bow": "🏹", "Staff": "🪄", "Dagger": "🔪",
-  "Spear": "🔱", "Axe": "🪓", "Mace": "🔨", "Shield": "🛡️",
+const WEAPON_NAMES: Record<string, string> = {
+  "Sword1h": "Épée 1 main", "SwordDual": "Doubles épées", "Sword2h": "Épée 2 mains",
+  "Bow": "Arc", "Staff": "Bâton", "Dagger": "Dague",
+  "Spear": "Lance", "Axe": "Hache", "Mace": "Masse", "Shield": "Bouclier",
+  "Wand": "Baguette", "Book": "Livre", "Gauntlets": "Gantelets",
 };
+
+function parseEmoji(emojiStr: string | undefined): { id: string; name: string } | undefined {
+  if (!emojiStr) return undefined;
+  const match = emojiStr.match(/<:(\w+):(\d+)>/);
+  if (!match) return undefined;
+  return { name: match[1], id: match[2] };
+}
+
+function weaponLabel(key: string): string {
+  const emoji = WEAPON_EMOJIS[key] ?? "⚔️";
+  const name = WEAPON_NAMES[key] ?? key;
+  return `${emoji} ${name}`;
+}
 
 const SKILL_CATEGORIES: Record<string, string> = {
   "NORMAL_SKILL": "Normale", "NORMAL": "Normale",
@@ -151,7 +175,7 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
   }
 
   const weaponLines = char.weaponSlots.map((w) => {
-    const label = WEAPON_LABELS[w.weapon] ?? w.weapon;
+    const label = weaponLabel(w.weapon);
     const elem = ELEMENT_EMOJIS[w.element] ?? "";
     const role = ROLE_LABELS[w.role] ?? w.role;
     return `${label} · ${elem} ${w.element} · ${role}`;
@@ -183,7 +207,7 @@ function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder
   const embed = baseEmbed(char);
   const grouped = groupSkillsByWeapon(char.skills);
   const skills = grouped.get(weaponType) ?? [];
-  const weaponName = WEAPON_LABELS[weaponType] ?? weaponType;
+  const weaponName = weaponLabel(weaponType);
 
   if (skills.length > 0) {
     for (const sk of skills) {
@@ -256,9 +280,9 @@ function buildWeaponSelectRow(char: CharacterData, activeWeapon: string): Action
     .setPlaceholder("Choisir une arme")
     .addOptions(
       weaponTypes.map((wt) => ({
-        label: (WEAPON_LABELS[wt] ?? wt).replace(/^\p{So}[\uFE0F]?\s*/u, ""), // strip leading emoji for label
+        label: WEAPON_NAMES[wt] ?? wt,
         value: wt,
-        emoji: WEAPON_SELECT_EMOJIS[wt] ?? "⚔️",
+        emoji: parseEmoji(WEAPON_EMOJIS[wt]),
         default: wt === activeWeapon,
       })),
     );
