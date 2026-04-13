@@ -49,7 +49,9 @@ export async function handleRepostCommand(
 
   try {
     const pingRole = interaction.options.getRole("ping");
-    const mention = pingRole ? `<@&${pingRole.id}>` : "";
+    const mention = pingRole
+      ? pingRole.id === interaction.guildId ? "@everyone" : `<@&${pingRole.id}>`
+      : "";
     const fullContent = [mention, original.content].filter(Boolean).join("\n");
     const chunks = splitContent(fullContent);
 
