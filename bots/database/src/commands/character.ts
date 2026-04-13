@@ -162,11 +162,15 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
     value: tree(weaponLines.length > 0 ? weaponLines : ["—"]),
   });
 
-  if (char.description) {
-    const desc = clean(char.description).slice(0, 200);
+  if (char.adventureSkill?.length > 0) {
+    const advLines = char.adventureSkill.map((a) => {
+      const d = clean(a.description).split("\n")[0].slice(0, 120);
+      return `**${a.name}**\n> *${d}*`;
+    });
+
     embed.addFields({
-      name: "📖 Description",
-      value: `> *${desc}${char.description.length > 200 ? "…" : ""}*`,
+      name: "🏕️ Passif d'aventure",
+      value: tree(advLines),
     });
   }
 
@@ -209,19 +213,6 @@ function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder
     }
   } else {
     embed.addFields({ name: weaponName, value: "*Aucun skill pour cette arme*" });
-  }
-
-  // Passif d'aventure (affiché sur toutes les pages skills)
-  if (char.adventureSkill?.length > 0) {
-    const advLines = char.adventureSkill.map((a) => {
-      const d = clean(a.description).split("\n")[0].slice(0, 120);
-      return `**${a.name}**\n> *${d}*`;
-    });
-
-    embed.addFields({
-      name: "🏕️ Passif d'aventure",
-      value: tree(advLines),
-    });
   }
 
   return embed;
