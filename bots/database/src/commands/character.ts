@@ -7,124 +7,50 @@ import {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  ComponentType,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
 import type { CharacterData, CharacterSkill } from "../api/types.js";
 
-// ── Mappings ────────────────────────────────────────────────────────
+// ── Emoji mappings (keyed by API *Key values) ───────────────────────
 
 const ELEMENT_EMOJIS: Record<string, string> = {
-  "Feu": "<:Fire:1488554913406652486>", "FIRE": "<:Fire:1488554913406652486>",
-  "Glace": "<:Ice:1488555000790646884>", "ICE": "<:Ice:1488555000790646884>",
-  "Lumière": "<:Light:1488554768585719931>", "LIGHT": "<:Light:1488554768585719931>",
-  "Ténèbres": "<:Darkness:1488553687516319857>", "DARK": "<:Darkness:1488553687516319857>",
-  "Vent": "<:Wind:1488554876588789780>", "WIND": "<:Wind:1488554876588789780>",
-  "Terre": "<:Earth:1488554844599091294>", "EARTH": "<:Earth:1488554844599091294>",
-  "Foudre": "<:Thunder:1488554973838184518>", "THUNDER": "<:Thunder:1488554973838184518>", "LIGHTNING": "<:Thunder:1488554973838184518>",
-  "Sacré": "✨", "HOLY": "✨",
+  FIRE: "<:Fire:1488554913406652486>",
+  ICE: "<:Ice:1488555000790646884>",
+  LIGHT: "<:Light:1488554768585719931>",
+  DARK: "<:Darkness:1488553687516319857>",
+  WIND: "<:Wind:1488554876588789780>",
+  EARTH: "<:Earth:1488554844599091294>",
+  THUNDER: "<:Thunder:1488554973838184518>",
+  HOLY: "✨",
 };
 
 const ELEMENT_UNICODE: Record<string, string> = {
-  "Feu": "🔥", "FIRE": "🔥",
-  "Glace": "🧊", "ICE": "🧊",
-  "Lumière": "☀️", "LIGHT": "☀️",
-  "Ténèbres": "🌑", "DARK": "🌑",
-  "Vent": "🌪️", "WIND": "🌪️",
-  "Terre": "🌿", "EARTH": "🌿",
-  "Foudre": "⚡", "THUNDER": "⚡", "LIGHTNING": "⚡",
-  "Sacré": "✨", "HOLY": "✨",
+  FIRE: "🔥", ICE: "🧊", LIGHT: "☀️", DARK: "🌑",
+  WIND: "🌪️", EARTH: "🌿", THUNDER: "⚡", HOLY: "✨",
 };
-
-const ELEMENT_LABELS_FR: Record<string, string> = {
-  "FIRE": "Feu", "Fire": "Feu", "Feu": "Feu",
-  "ICE": "Glace", "Ice": "Glace", "Glace": "Glace",
-  "LIGHT": "Lumière", "Light": "Lumière", "Lumière": "Lumière",
-  "DARK": "Ténèbres", "Dark": "Ténèbres", "Darkness": "Ténèbres", "Ténèbres": "Ténèbres",
-  "WIND": "Vent", "Wind": "Vent", "Vent": "Vent",
-  "EARTH": "Terre", "Earth": "Terre", "Terre": "Terre",
-  "THUNDER": "Foudre", "Thunder": "Foudre", "LIGHTNING": "Foudre", "Foudre": "Foudre",
-  "HOLY": "Sacré", "Holy": "Sacré", "Sacré": "Sacré",
-};
-
-const ELEMENT_LABELS_EN: Record<string, string> = {
-  "FIRE": "Fire", "Fire": "Fire", "Feu": "Fire",
-  "ICE": "Ice", "Ice": "Ice", "Glace": "Ice",
-  "LIGHT": "Light", "Light": "Light", "Lumière": "Light",
-  "DARK": "Darkness", "Dark": "Darkness", "Darkness": "Darkness", "Ténèbres": "Darkness",
-  "WIND": "Wind", "Wind": "Wind", "Vent": "Wind",
-  "EARTH": "Earth", "Earth": "Earth", "Terre": "Earth",
-  "THUNDER": "Thunder", "Thunder": "Thunder", "LIGHTNING": "Thunder", "Foudre": "Thunder",
-  "HOLY": "Holy", "Holy": "Holy", "Sacré": "Holy",
-};
-
-const ROLE_LABELS_FR: Record<string, string> = {
-  "ATTACKER": "Attaquant", "Attacker": "Attaquant", "Attaquant": "Attaquant",
-  "DEFENDER": "Défenseur", "Defender": "Défenseur", "Défenseur": "Défenseur",
-  "SUPPORT": "Support", "HEALER": "Soigneur", "Healer": "Soigneur", "Soigneur": "Soigneur",
-};
-
-const ROLE_LABELS_EN: Record<string, string> = {
-  "ATTACKER": "Attacker", "Attacker": "Attacker", "Attaquant": "Attacker",
-  "DEFENDER": "Defender", "Defender": "Defender", "Défenseur": "Defender",
-  "SUPPORT": "Support", "HEALER": "Healer", "Healer": "Healer", "Soigneur": "Healer",
-};
-
-function elementLabel(key: string, lang: Lang): string {
-  return (lang === "fr" ? ELEMENT_LABELS_FR : ELEMENT_LABELS_EN)[key] ?? key;
-}
-
-function roleLabel(key: string, lang: Lang): string {
-  return (lang === "fr" ? ROLE_LABELS_FR : ROLE_LABELS_EN)[key] ?? key;
-}
 
 const RARITY_COLORS: Record<string, number> = {
-  "SSR": 0xffd700, "SR": 0xc084fc, "R": 0x60a5fa,
+  SSR: 0xffd700, SR: 0xc084fc, R: 0x60a5fa,
 };
 
 const RARITY_EMOJIS: Record<string, string> = {
-  "SSR": "<:SSR:1488553581329256479>",
-  "SR": "<:SR:1488553611733762058>",
+  SSR: "<:SSR:1488553581329256479>",
+  SR: "<:SR:1488553611733762058>",
 };
 
 const WEAPON_EMOJIS: Record<string, string> = {
-  "Sword1h": "<:ItemDivision_sword1h:1493240454827999273>",
-  "SwordDual": "<:ItemDivision_sworddual:1493240457184935967>",
-  "Sword2h": "<:ItemDivision_sword2h:1493240455888896192>",
-  "Bow": "<:ItemDivision_rapier:1493240450533036053>",
-  "Staff": "<:ItemDivision_staff:1493240453053546646>",
-  "Dagger": "<:ItemDivision_rapier:1493240450533036053>",
-  "Spear": "<:ItemDivision_lance:1493240449123483728>",
-  "Axe": "<:ItemDivision_axe:1493240409412079647>",
-  "Mace": "<:ItemDivision_cudgel3c:1493240445856120866>",
-  "Shield": "<:ItemDivision_shield:1493240451866824724>",
-  "Wand": "<:ItemDivision_wand:1493240458502078595>",
-  "Book": "<:ItemDivision_book:1493240431985692754>",
-  "Gauntlets": "<:ItemDivision_gauntlets:1493240447202754670>",
-};
-
-const WEAPON_NAMES_FR: Record<string, string> = {
-  "Sword1h": "Épée 1 main", "SwordDual": "Doubles épées", "Sword2h": "Épée 2 mains",
-  "Bow": "Arc", "Staff": "Bâton", "Dagger": "Dague",
-  "Spear": "Lance", "Axe": "Hache", "Mace": "Masse", "Shield": "Bouclier",
-  "Wand": "Baguette", "Book": "Livre", "Gauntlets": "Gantelets",
-};
-
-const WEAPON_NAMES_EN: Record<string, string> = {
-  "Sword1h": "1H Sword", "SwordDual": "Dual Swords", "Sword2h": "2H Sword",
-  "Bow": "Bow", "Staff": "Staff", "Dagger": "Dagger",
-  "Spear": "Spear", "Axe": "Axe", "Mace": "Mace", "Shield": "Shield",
-  "Wand": "Wand", "Book": "Book", "Gauntlets": "Gauntlets",
-};
-
-function weaponName(key: string, lang: Lang): string {
-  return (lang === "fr" ? WEAPON_NAMES_FR : WEAPON_NAMES_EN)[key] ?? key;
-}
-
-const SKILL_CATEGORIES: Record<string, string> = {
-  "NORMAL_SKILL": "Normale", "NORMAL": "Normale",
-  "ULTIMATE": "Ultime", "PASSIVE": "Passif",
-  "ACTIVE_THIRD": "Spéciale", "TAG_SKILL": "Tag",
+  SWORD1H: "<:ItemDivision_sword1h:1493240454827999273>",
+  SWORDDUAL: "<:ItemDivision_sworddual:1493240457184935967>",
+  SWORD2H: "<:ItemDivision_sword2h:1493240455888896192>",
+  AXE: "<:ItemDivision_axe:1493240409412079647>",
+  STAFF: "<:ItemDivision_staff:1493240453053546646>",
+  LANCE: "<:ItemDivision_lance:1493240449123483728>",
+  RAPIER: "<:ItemDivision_rapier:1493240450533036053>",
+  SHIELD: "<:ItemDivision_shield:1493240451866824724>",
+  WAND: "<:ItemDivision_wand:1493240458502078595>",
+  BOOK: "<:ItemDivision_book:1493240431985692754>",
+  GAUNTLETS: "<:ItemDivision_gauntlets:1493240447202754670>",
+  CUDGEL3C: "<:ItemDivision_cudgel3c:1493240445856120866>",
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -147,23 +73,26 @@ function tree(items: string[]): string {
   ).join("\n");
 }
 
-function parseEmoji(emojiStr: string | undefined): { id: string; name: string } | undefined {
-  if (!emojiStr) return undefined;
-  const match = emojiStr.match(/<:(\w+):(\d+)>/);
+function parseEmoji(key: string): { id: string; name: string } | undefined {
+  const str = WEAPON_EMOJIS[key];
+  if (!str) return undefined;
+  const match = str.match(/<:(\w+):(\d+)>/);
   if (!match) return undefined;
   return { name: match[1], id: match[2] };
 }
 
-function weaponLabel(key: string, lang: Lang = "fr"): string {
-  const emoji = WEAPON_EMOJIS[key] ?? "⚔️";
-  const name = weaponName(key, lang);
-  return `${emoji} ${name}`;
+function elemEmoji(key: string): string {
+  return ELEMENT_EMOJIS[key] ?? "🔮";
+}
+
+function weaponEmoji(key: string): string {
+  return WEAPON_EMOJIS[key] ?? "⚔️";
 }
 
 function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSkill[]> {
   const map = new Map<string, CharacterSkill[]>();
   for (const sk of skills) {
-    const key = sk.weaponType;
+    const key = sk.weaponTypeKey;
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(sk);
   }
@@ -176,10 +105,8 @@ type Lang = "fr" | "en";
 
 // ── Shared header ───────────────────────────────────────────────────
 
-function baseEmbed(char: CharacterData, lang: Lang): EmbedBuilder {
-  const elemEmoji = ELEMENT_EMOJIS[char.element] ?? "🔮";
+function baseEmbed(char: CharacterData): EmbedBuilder {
   const rarityEmoji = RARITY_EMOJIS[char.rarity] ?? "";
-  const role = roleLabel(char.role, lang);
   const color = RARITY_COLORS[char.rarity] ?? 0xc9a84c;
 
   const title = char.name !== char.nameEn
@@ -188,19 +115,21 @@ function baseEmbed(char: CharacterData, lang: Lang): EmbedBuilder {
 
   return new EmbedBuilder()
     .setColor(color)
-    .setDescription(`${elemEmoji} ${elementLabel(char.element, lang)} · ${role} ${rarityEmoji}\n\n**${title}**`)
+    .setDescription(`${elemEmoji(char.elementKey)} ${char.element} · ${char.role} ${rarityEmoji}\n\n**${title}**`)
     .setThumbnail(char.imageUrl || null)
     .setFooter({ text: "7DS Origin · 7dsorigin.app" });
 }
 
 // ── Page 1 : Overview ──────────────────────────────────────────────
 
-function buildOverviewEmbed(char: CharacterData, lang: Lang): EmbedBuilder {
-  const embed = baseEmbed(char, lang);
+function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
+  const embed = baseEmbed(char);
   const s = char.stats;
 
+  const statsLabel = char.statsLevel ? `📊 Stats (Lv.${char.statsLevel})` : "📊 Stats";
+
   embed.addFields({
-    name: "📊 Stats de base",
+    name: statsLabel,
     value: tree([
       `❤️ PV **${fmt(s.hp)}**`,
       `⚔️ ATK **${fmt(s.atk)}**`,
@@ -224,13 +153,9 @@ function buildOverviewEmbed(char: CharacterData, lang: Lang): EmbedBuilder {
     });
   }
 
-  const weaponLines = char.weaponSlots.map((w) => {
-    const label = weaponLabel(w.weapon, lang);
-    const elemEmoji = ELEMENT_EMOJIS[w.element] ?? "";
-    const elemName = elementLabel(w.element, lang);
-    const role = roleLabel(w.role, lang);
-    return `${label} · ${elemEmoji} ${elemName} · ${role}`;
-  });
+  const weaponLines = char.weaponSlots.map((w) =>
+    `${weaponEmoji(w.weaponKey)} ${w.weapon} · ${elemEmoji(w.elementKey)} ${w.element} · ${w.role}`,
+  );
 
   embed.addFields({
     name: "🗡️ Armes compatibles",
@@ -249,25 +174,32 @@ function buildOverviewEmbed(char: CharacterData, lang: Lang): EmbedBuilder {
     });
   }
 
+  if (char.bannerUrl) {
+    embed.setImage(char.bannerUrl);
+  }
+
   return embed;
 }
 
 // ── Page 2 : Skills ────────────────────────────────────────────────
 
-function buildSkillsEmbed(char: CharacterData, weaponType: string, lang: Lang): EmbedBuilder {
-  const embed = baseEmbed(char, lang);
+function buildSkillsEmbed(char: CharacterData, weaponTypeKey: string): EmbedBuilder {
+  const embed = baseEmbed(char);
   const grouped = groupSkillsByWeapon(char.skills);
-  const skills = grouped.get(weaponType) ?? [];
-  const wLabel = weaponLabel(weaponType, lang);
+  const skills = grouped.get(weaponTypeKey) ?? [];
+
+  // Find translated weapon name from first skill
+  const weaponLabel = skills[0]?.weaponType
+    ?? char.weaponSlots.find((w) => w.weaponKey === weaponTypeKey)?.weapon
+    ?? weaponTypeKey;
 
   if (skills.length > 0) {
     for (const sk of skills) {
-      const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
       const cd = sk.cooldown ? ` · CD ${sk.cooldown}s` : "";
 
       const statsParts: string[] = [];
       if (sk.damagePercent) statsParts.push(`**${sk.damagePercent}**`);
-      if (sk.hitCount > 0) statsParts.push(`**${sk.hitCount}** hit${sk.hitCount > 1 ? "s" : ""}`);
+      if (sk.hitCount && sk.hitCount > 0) statsParts.push(`**${sk.hitCount}** hit${sk.hitCount > 1 ? "s" : ""}`);
       const statsLine = statsParts.length > 0
         ? statsParts.join(" × ") + "\n"
         : "";
@@ -276,17 +208,20 @@ function buildSkillsEmbed(char: CharacterData, weaponType: string, lang: Lang): 
         ? `> ${clean(sk.description).split("\n")[0].slice(0, 200)}\n`
         : "";
 
-      const buffs = sk.buffs?.length > 0
+      const buffs = sk.buffs?.length
         ? sk.buffs.map((b) => `├ 🟢 ${b.nameFr}`).join("\n") + "\n"
         : "";
 
       embed.addFields({
-        name: `${cat} — ${sk.name}${cd}`,
+        name: `${sk.category} — ${sk.name}${cd}`,
         value: `${statsLine}${desc}${buffs}` || "\u200B",
       });
     }
   } else {
-    embed.addFields({ name: wLabel, value: "*Aucun skill pour cette arme*" });
+    embed.addFields({
+      name: `${weaponEmoji(weaponTypeKey)} ${weaponLabel}`,
+      value: "*Aucun skill pour cette arme*",
+    });
   }
 
   return embed;
@@ -301,11 +236,11 @@ interface CharacterState {
   en: CharacterData;
   lang: Lang;
   page: Page;
-  activeWeapon: string;
+  activeWeapon: string; // weaponTypeKey
 }
 
 function getWeaponTypes(char: CharacterData): string[] {
-  return [...new Set(char.skills.map((sk) => sk.weaponType))];
+  return [...new Set(char.skills.map((sk) => sk.weaponTypeKey))];
 }
 
 function getChar(state: CharacterState): CharacterData {
@@ -348,12 +283,20 @@ function buildWeaponSelectRow(state: CharacterState): ActionRowBuilder<StringSel
     .setCustomId(`char:${char.slug}:weapon`)
     .setPlaceholder(state.lang === "fr" ? "Choisir une arme" : "Select a weapon")
     .addOptions(
-      weaponTypes.map((wt) => ({
-        label: weaponName(wt, state.lang),
-        value: wt,
-        emoji: parseEmoji(WEAPON_EMOJIS[wt]),
-        default: wt === state.activeWeapon,
-      })),
+      weaponTypes.map((wtKey) => {
+        // Get translated name from weaponSlots or skills
+        const slot = char.weaponSlots.find((w) => w.weaponKey === wtKey);
+        const label = slot?.weapon
+          ?? char.skills.find((sk) => sk.weaponTypeKey === wtKey)?.weaponType
+          ?? wtKey;
+
+        return {
+          label,
+          value: wtKey,
+          emoji: parseEmoji(wtKey),
+          default: wtKey === state.activeWeapon,
+        };
+      }),
     );
 
   return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
@@ -405,8 +348,8 @@ function buildExpiredComponents(state: CharacterState): ActionRowBuilder<ButtonB
 function buildCurrentEmbed(state: CharacterState): EmbedBuilder {
   const char = getChar(state);
   return state.page === "overview"
-    ? buildOverviewEmbed(char, state.lang)
-    : buildSkillsEmbed(char, state.activeWeapon, state.lang);
+    ? buildOverviewEmbed(char)
+    : buildSkillsEmbed(char, state.activeWeapon);
 }
 
 // ── Command definition ──────────────────────────────────────────────
@@ -436,7 +379,7 @@ export async function handleCharacterAutocomplete(
     const results = await apiClient.searchCharacters(focused);
     await interaction.respond(
       results.slice(0, 25).map((c) => {
-        const elem = ELEMENT_UNICODE[c.element] ?? "";
+        const elem = ELEMENT_UNICODE[c.elementKey] ?? "";
         const label = c.name !== c.nameEn ? `${c.name} / ${c.nameEn}` : c.name;
         return { name: `${elem} ${label}  [${c.rarity}]`, value: c.slug };
       }),
@@ -459,7 +402,6 @@ export async function handleCharacterCommand(
   await interaction.deferReply();
 
   try {
-    // Fetch both languages in parallel
     const [charFr, charEn] = await Promise.all([
       apiClient.getCharacter(slug, "fr"),
       apiClient.getCharacter(slug, "en"),
@@ -499,7 +441,6 @@ export async function handleCharacterCommand(
           state.page = "skills";
         } else if (action === "lang") {
           state.lang = state.lang === "fr" ? "en" : "fr";
-          // Reset weapon to first of current lang data
           const char = getChar(state);
           const wt = getWeaponTypes(char);
           if (!wt.includes(state.activeWeapon)) {

@@ -4,25 +4,33 @@ export interface CharacterSearchResult {
   nameEn: string;
   rarity: string;
   element: string;
+  elementKey: string;
   role: string;
+  roleKey: string;
+  imageUrl: string | null;
 }
 
 export interface CharacterBuff {
   buffId: string;
   buffType: string;
   nameFr: string;
+  nameEn: string;
+  descriptionFr: string;
+  descriptionEn: string;
 }
 
 export interface CharacterSkill {
   name: string;
   description: string;
   category: string;
+  categoryKey: string;
   weaponType: string;
-  cooldown: number;
-  damagePercent: string;
-  hitCount: number;
-  iconUrl: string;
-  buffs: CharacterBuff[];
+  weaponTypeKey: string;
+  cooldown: number | null;
+  damagePercent: string | null;
+  hitCount: number | null;
+  iconUrl: string | null;
+  buffs: CharacterBuff[] | null;
 }
 
 export interface AdventureSkill {
@@ -32,8 +40,11 @@ export interface AdventureSkill {
 
 export interface WeaponSlot {
   weapon: string;
+  weaponKey: string;
   element: string;
+  elementKey: string;
   role: string;
+  roleKey: string;
 }
 
 export interface CharacterStats {
@@ -52,23 +63,19 @@ export interface CharacterStats {
   pvpDmgDown: number;
 }
 
-export interface CharacterStatsRaw {
-  hp: number;
-  atk: number;
-  def: number;
-  spd: number;
-}
-
 export interface CharacterData {
   slug: string;
   name: string;
   nameEn: string;
-  description: string;
+  description: string | null;
   rarity: string;
   element: string;
+  elementKey: string;
   role: string;
+  roleKey: string;
   imageUrl: string;
-  statsRaw: CharacterStatsRaw;
+  bannerUrl: string | null;
+  statsLevel: number;
   stats: CharacterStats;
   weaponSlots: WeaponSlot[];
   adventureSkill: AdventureSkill[];
