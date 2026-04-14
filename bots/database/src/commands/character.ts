@@ -36,7 +36,7 @@ const ELEMENT_UNICODE: Record<string, string> = {
   "Sacré": "✨", "HOLY": "✨",
 };
 
-const ELEMENT_LABELS: Record<string, string> = {
+const ELEMENT_LABELS_FR: Record<string, string> = {
   "FIRE": "Feu", "Fire": "Feu", "Feu": "Feu",
   "ICE": "Glace", "Ice": "Glace", "Glace": "Glace",
   "LIGHT": "Lumière", "Light": "Lumière", "Lumière": "Lumière",
@@ -47,12 +47,36 @@ const ELEMENT_LABELS: Record<string, string> = {
   "HOLY": "Sacré", "Holy": "Sacré", "Sacré": "Sacré",
 };
 
-const ROLE_LABELS: Record<string, string> = {
+const ELEMENT_LABELS_EN: Record<string, string> = {
+  "FIRE": "Fire", "Fire": "Fire", "Feu": "Fire",
+  "ICE": "Ice", "Ice": "Ice", "Glace": "Ice",
+  "LIGHT": "Light", "Light": "Light", "Lumière": "Light",
+  "DARK": "Darkness", "Dark": "Darkness", "Darkness": "Darkness", "Ténèbres": "Darkness",
+  "WIND": "Wind", "Wind": "Wind", "Vent": "Wind",
+  "EARTH": "Earth", "Earth": "Earth", "Terre": "Earth",
+  "THUNDER": "Thunder", "Thunder": "Thunder", "LIGHTNING": "Thunder", "Foudre": "Thunder",
+  "HOLY": "Holy", "Holy": "Holy", "Sacré": "Holy",
+};
+
+const ROLE_LABELS_FR: Record<string, string> = {
   "ATTACKER": "Attaquant", "Attacker": "Attaquant", "Attaquant": "Attaquant",
   "DEFENDER": "Défenseur", "Defender": "Défenseur", "Défenseur": "Défenseur",
-  "SUPPORT": "Support", "Support": "Support",
-  "HEALER": "Soigneur", "Healer": "Soigneur", "Soigneur": "Soigneur",
+  "SUPPORT": "Support", "HEALER": "Soigneur", "Healer": "Soigneur", "Soigneur": "Soigneur",
 };
+
+const ROLE_LABELS_EN: Record<string, string> = {
+  "ATTACKER": "Attacker", "Attacker": "Attacker", "Attaquant": "Attacker",
+  "DEFENDER": "Defender", "Defender": "Defender", "Défenseur": "Defender",
+  "SUPPORT": "Support", "HEALER": "Healer", "Healer": "Healer", "Soigneur": "Healer",
+};
+
+function elementLabel(key: string, lang: Lang): string {
+  return (lang === "fr" ? ELEMENT_LABELS_FR : ELEMENT_LABELS_EN)[key] ?? key;
+}
+
+function roleLabel(key: string, lang: Lang): string {
+  return (lang === "fr" ? ROLE_LABELS_FR : ROLE_LABELS_EN)[key] ?? key;
+}
 
 const RARITY_COLORS: Record<string, number> = {
   "SSR": 0xffd700, "SR": 0xc084fc, "R": 0x60a5fa,
@@ -79,12 +103,23 @@ const WEAPON_EMOJIS: Record<string, string> = {
   "Gauntlets": "<:ItemDivision_gauntlets:1493240447202754670>",
 };
 
-const WEAPON_NAMES: Record<string, string> = {
+const WEAPON_NAMES_FR: Record<string, string> = {
   "Sword1h": "Épée 1 main", "SwordDual": "Doubles épées", "Sword2h": "Épée 2 mains",
   "Bow": "Arc", "Staff": "Bâton", "Dagger": "Dague",
   "Spear": "Lance", "Axe": "Hache", "Mace": "Masse", "Shield": "Bouclier",
   "Wand": "Baguette", "Book": "Livre", "Gauntlets": "Gantelets",
 };
+
+const WEAPON_NAMES_EN: Record<string, string> = {
+  "Sword1h": "1H Sword", "SwordDual": "Dual Swords", "Sword2h": "2H Sword",
+  "Bow": "Bow", "Staff": "Staff", "Dagger": "Dagger",
+  "Spear": "Spear", "Axe": "Axe", "Mace": "Mace", "Shield": "Shield",
+  "Wand": "Wand", "Book": "Book", "Gauntlets": "Gauntlets",
+};
+
+function weaponName(key: string, lang: Lang): string {
+  return (lang === "fr" ? WEAPON_NAMES_FR : WEAPON_NAMES_EN)[key] ?? key;
+}
 
 const SKILL_CATEGORIES: Record<string, string> = {
   "NORMAL_SKILL": "Normale", "NORMAL": "Normale",
@@ -119,9 +154,9 @@ function parseEmoji(emojiStr: string | undefined): { id: string; name: string } 
   return { name: match[1], id: match[2] };
 }
 
-function weaponLabel(key: string): string {
+function weaponLabel(key: string, lang: Lang = "fr"): string {
   const emoji = WEAPON_EMOJIS[key] ?? "⚔️";
-  const name = WEAPON_NAMES[key] ?? key;
+  const name = weaponName(key, lang);
   return `${emoji} ${name}`;
 }
 
@@ -141,10 +176,10 @@ type Lang = "fr" | "en";
 
 // ── Shared header ───────────────────────────────────────────────────
 
-function baseEmbed(char: CharacterData): EmbedBuilder {
+function baseEmbed(char: CharacterData, lang: Lang): EmbedBuilder {
   const elemEmoji = ELEMENT_EMOJIS[char.element] ?? "🔮";
   const rarityEmoji = RARITY_EMOJIS[char.rarity] ?? "";
-  const role = ROLE_LABELS[char.role] ?? char.role;
+  const role = roleLabel(char.role, lang);
   const color = RARITY_COLORS[char.rarity] ?? 0xc9a84c;
 
   const title = char.name !== char.nameEn
@@ -153,15 +188,15 @@ function baseEmbed(char: CharacterData): EmbedBuilder {
 
   return new EmbedBuilder()
     .setColor(color)
-    .setDescription(`${elemEmoji} ${char.element} · ${role} ${rarityEmoji}\n\n**${title}**`)
+    .setDescription(`${elemEmoji} ${elementLabel(char.element, lang)} · ${role} ${rarityEmoji}\n\n**${title}**`)
     .setThumbnail(char.imageUrl || null)
     .setFooter({ text: "7DS Origin · 7dsorigin.app" });
 }
 
 // ── Page 1 : Overview ──────────────────────────────────────────────
 
-function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
-  const embed = baseEmbed(char);
+function buildOverviewEmbed(char: CharacterData, lang: Lang): EmbedBuilder {
+  const embed = baseEmbed(char, lang);
   const s = char.stats;
 
   embed.addFields({
@@ -190,10 +225,10 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
   }
 
   const weaponLines = char.weaponSlots.map((w) => {
-    const label = weaponLabel(w.weapon);
+    const label = weaponLabel(w.weapon, lang);
     const elemEmoji = ELEMENT_EMOJIS[w.element] ?? "";
-    const elemName = ELEMENT_LABELS[w.element] ?? w.element;
-    const role = ROLE_LABELS[w.role] ?? w.role;
+    const elemName = elementLabel(w.element, lang);
+    const role = roleLabel(w.role, lang);
     return `${label} · ${elemEmoji} ${elemName} · ${role}`;
   });
 
@@ -219,11 +254,11 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
 
 // ── Page 2 : Skills ────────────────────────────────────────────────
 
-function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder {
-  const embed = baseEmbed(char);
+function buildSkillsEmbed(char: CharacterData, weaponType: string, lang: Lang): EmbedBuilder {
+  const embed = baseEmbed(char, lang);
   const grouped = groupSkillsByWeapon(char.skills);
   const skills = grouped.get(weaponType) ?? [];
-  const weaponName = weaponLabel(weaponType);
+  const wLabel = weaponLabel(weaponType, lang);
 
   if (skills.length > 0) {
     for (const sk of skills) {
@@ -251,7 +286,7 @@ function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder
       });
     }
   } else {
-    embed.addFields({ name: weaponName, value: "*Aucun skill pour cette arme*" });
+    embed.addFields({ name: wLabel, value: "*Aucun skill pour cette arme*" });
   }
 
   return embed;
@@ -311,10 +346,10 @@ function buildWeaponSelectRow(state: CharacterState): ActionRowBuilder<StringSel
 
   const select = new StringSelectMenuBuilder()
     .setCustomId(`char:${char.slug}:weapon`)
-    .setPlaceholder("Choisir une arme")
+    .setPlaceholder(state.lang === "fr" ? "Choisir une arme" : "Select a weapon")
     .addOptions(
       weaponTypes.map((wt) => ({
-        label: WEAPON_NAMES[wt] ?? wt,
+        label: weaponName(wt, state.lang),
         value: wt,
         emoji: parseEmoji(WEAPON_EMOJIS[wt]),
         default: wt === state.activeWeapon,
@@ -370,8 +405,8 @@ function buildExpiredComponents(state: CharacterState): ActionRowBuilder<ButtonB
 function buildCurrentEmbed(state: CharacterState): EmbedBuilder {
   const char = getChar(state);
   return state.page === "overview"
-    ? buildOverviewEmbed(char)
-    : buildSkillsEmbed(char, state.activeWeapon);
+    ? buildOverviewEmbed(char, state.lang)
+    : buildSkillsEmbed(char, state.activeWeapon, state.lang);
 }
 
 // ── Command definition ──────────────────────────────────────────────
