@@ -37,10 +37,22 @@ const ELEMENT_UNICODE: Record<string, string> = {
   "Sacré": "✨", "HOLY": "✨",
 };
 
+const ELEMENT_LABELS: Record<string, string> = {
+  "FIRE": "Feu", "Fire": "Feu", "Feu": "Feu",
+  "ICE": "Glace", "Ice": "Glace", "Glace": "Glace",
+  "LIGHT": "Lumière", "Light": "Lumière", "Lumière": "Lumière",
+  "DARK": "Ténèbres", "Dark": "Ténèbres", "Darkness": "Ténèbres", "Ténèbres": "Ténèbres",
+  "WIND": "Vent", "Wind": "Vent", "Vent": "Vent",
+  "EARTH": "Terre", "Earth": "Terre", "Terre": "Terre",
+  "THUNDER": "Foudre", "Thunder": "Foudre", "LIGHTNING": "Foudre", "Foudre": "Foudre",
+  "HOLY": "Sacré", "Holy": "Sacré", "Sacré": "Sacré",
+};
+
 const ROLE_LABELS: Record<string, string> = {
-  "ATTACKER": "Attaquant", "Attaquant": "Attaquant",
-  "DEFENDER": "Défenseur", "Défenseur": "Défenseur",
-  "SUPPORT": "Support", "HEALER": "Soigneur",
+  "ATTACKER": "Attaquant", "Attacker": "Attaquant", "Attaquant": "Attaquant",
+  "DEFENDER": "Défenseur", "Defender": "Défenseur", "Défenseur": "Défenseur",
+  "SUPPORT": "Support", "Support": "Support",
+  "HEALER": "Soigneur", "Healer": "Soigneur", "Soigneur": "Soigneur",
 };
 
 const RARITY_COLORS: Record<string, number> = {
@@ -176,9 +188,10 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
 
   const weaponLines = char.weaponSlots.map((w) => {
     const label = weaponLabel(w.weapon);
-    const elem = ELEMENT_EMOJIS[w.element] ?? "";
+    const elemEmoji = ELEMENT_EMOJIS[w.element] ?? "";
+    const elemName = ELEMENT_LABELS[w.element] ?? w.element;
     const role = ROLE_LABELS[w.role] ?? w.role;
-    return `${label} · ${elem} ${w.element} · ${role}`;
+    return `${label} · ${elemEmoji} ${elemName} · ${role}`;
   });
 
   embed.addFields({
@@ -214,25 +227,25 @@ function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder
       const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
       const cd = sk.cooldown ? ` · CD ${sk.cooldown}s` : "";
 
-      // ANSI colored stats line: orange for damage, cyan for hits
-      const statsAnsi: string[] = [];
-      if (sk.damagePercent) statsAnsi.push(`\u001b[1;33m${sk.damagePercent} ATK\u001b[0m`);
-      if (sk.hitCount > 0) statsAnsi.push(`\u001b[1;36m${sk.hitCount} hit${sk.hitCount > 1 ? "s" : ""}\u001b[0m`);
-      const statsBlock = statsAnsi.length > 0
-        ? "\n```ansi\n" + statsAnsi.join(" × ") + "\n```"
+      // Stats line
+      const statsParts: string[] = [];
+      if (sk.damagePercent) statsParts.push(`**${sk.damagePercent}**`);
+      if (sk.hitCount > 0) statsParts.push(`**${sk.hitCount}** hit${sk.hitCount > 1 ? "s" : ""}`);
+      const statsLine = statsParts.length > 0
+        ? statsParts.join(" × ") + "\n"
         : "";
 
       const desc = sk.description
-        ? `> *${clean(sk.description).split("\n")[0].slice(0, 150)}*\n`
+        ? `> ${clean(sk.description).split("\n")[0].slice(0, 200)}\n`
         : "";
 
       const buffs = sk.buffs?.length > 0
-        ? sk.buffs.map((b) => `> 🟢 ${b.nameFr}`).join("\n") + "\n"
+        ? sk.buffs.map((b) => `├ 🟢 ${b.nameFr}`).join("\n") + "\n"
         : "";
 
       embed.addFields({
-        name: `${cat} — ${sk.name}`,
-        value: `${weaponName}${cd}${statsBlock}${desc}${buffs}`,
+        name: `${cat} — ${sk.name}${cd}`,
+        value: `${statsLine}${desc}${buffs}` || "\u200B",
       });
     }
   } else {
