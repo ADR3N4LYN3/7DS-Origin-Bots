@@ -25,7 +25,6 @@ const ELEMENT_EMOJIS: Record<string, string> = {
   "Sacré": "✨", "HOLY": "✨",
 };
 
-// Unicode fallbacks for autocomplete (Discord doesn't render custom emojis there)
 const ELEMENT_UNICODE: Record<string, string> = {
   "Feu": "🔥", "FIRE": "🔥",
   "Glace": "🧊", "ICE": "🧊",
@@ -87,19 +86,6 @@ const WEAPON_NAMES: Record<string, string> = {
   "Wand": "Baguette", "Book": "Livre", "Gauntlets": "Gantelets",
 };
 
-function parseEmoji(emojiStr: string | undefined): { id: string; name: string } | undefined {
-  if (!emojiStr) return undefined;
-  const match = emojiStr.match(/<:(\w+):(\d+)>/);
-  if (!match) return undefined;
-  return { name: match[1], id: match[2] };
-}
-
-function weaponLabel(key: string): string {
-  const emoji = WEAPON_EMOJIS[key] ?? "⚔️";
-  const name = WEAPON_NAMES[key] ?? key;
-  return `${emoji} ${name}`;
-}
-
 const SKILL_CATEGORIES: Record<string, string> = {
   "NORMAL_SKILL": "Normale", "NORMAL": "Normale",
   "ULTIMATE": "Ultime", "PASSIVE": "Passif",
@@ -126,6 +112,19 @@ function tree(items: string[]): string {
   ).join("\n");
 }
 
+function parseEmoji(emojiStr: string | undefined): { id: string; name: string } | undefined {
+  if (!emojiStr) return undefined;
+  const match = emojiStr.match(/<:(\w+):(\d+)>/);
+  if (!match) return undefined;
+  return { name: match[1], id: match[2] };
+}
+
+function weaponLabel(key: string): string {
+  const emoji = WEAPON_EMOJIS[key] ?? "⚔️";
+  const name = WEAPON_NAMES[key] ?? key;
+  return `${emoji} ${name}`;
+}
+
 function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSkill[]> {
   const map = new Map<string, CharacterSkill[]>();
   for (const sk of skills) {
@@ -135,6 +134,10 @@ function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSki
   }
   return map;
 }
+
+// ── Lang type ───────────────────────────────────────────────────────
+
+type Lang = "fr" | "en";
 
 // ── Shared header ───────────────────────────────────────────────────
 
@@ -155,7 +158,7 @@ function baseEmbed(char: CharacterData): EmbedBuilder {
     .setFooter({ text: "7DS Origin · 7dsorigin.app" });
 }
 
-// ── Page 1 : Vue d'ensemble ─────────────────────────────────────────
+// ── Page 1 : Overview ──────────────────────────────────────────────
 
 function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
   const embed = baseEmbed(char);
@@ -214,7 +217,7 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
   return embed;
 }
 
-// ── Page 2 : Skills (filtrés par arme) ──────────────────────────────
+// ── Page 2 : Skills ────────────────────────────────────────────────
 
 function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder {
   const embed = baseEmbed(char);
@@ -227,7 +230,6 @@ function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder
       const cat = SKILL_CATEGORIES[sk.category] ?? sk.category;
       const cd = sk.cooldown ? ` · CD ${sk.cooldown}s` : "";
 
-      // Stats line
       const statsParts: string[] = [];
       if (sk.damagePercent) statsParts.push(`**${sk.damagePercent}**`);
       if (sk.hitCount > 0) statsParts.push(`**${sk.hitCount}** hit${sk.hitCount > 1 ? "s" : ""}`);
@@ -259,24 +261,42 @@ function buildSkillsEmbed(char: CharacterData, weaponType: string): EmbedBuilder
 
 type Page = "overview" | "skills";
 
+interface CharacterState {
+  fr: CharacterData;
+  en: CharacterData;
+  lang: Lang;
+  page: Page;
+  activeWeapon: string;
+}
+
 function getWeaponTypes(char: CharacterData): string[] {
   return [...new Set(char.skills.map((sk) => sk.weaponType))];
 }
 
-function buildButtonRow(char: CharacterData, activePage: Page): ActionRowBuilder<ButtonBuilder> {
+function getChar(state: CharacterState): CharacterData {
+  return state.lang === "fr" ? state.fr : state.en;
+}
+
+function buildButtonRow(state: CharacterState): ActionRowBuilder<ButtonBuilder> {
+  const char = getChar(state);
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`char:${char.slug}:overview`)
       .setLabel("Vue d'ensemble")
       .setEmoji("📊")
-      .setStyle(activePage === "overview" ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(activePage === "overview"),
+      .setStyle(state.page === "overview" ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      .setDisabled(state.page === "overview"),
     new ButtonBuilder()
       .setCustomId(`char:${char.slug}:skills`)
       .setLabel("Skills")
       .setEmoji("⚔️")
-      .setStyle(activePage === "skills" ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(activePage === "skills"),
+      .setStyle(state.page === "skills" ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      .setDisabled(state.page === "skills"),
+    new ButtonBuilder()
+      .setCustomId(`char:${char.slug}:lang`)
+      .setLabel(state.lang === "fr" ? "EN" : "FR")
+      .setEmoji(state.lang === "fr" ? "🇬🇧" : "🇫🇷")
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setLabel("Fiche complète")
       .setURL(char.url)
@@ -285,7 +305,8 @@ function buildButtonRow(char: CharacterData, activePage: Page): ActionRowBuilder
   );
 }
 
-function buildWeaponSelectRow(char: CharacterData, activeWeapon: string): ActionRowBuilder<StringSelectMenuBuilder> {
+function buildWeaponSelectRow(state: CharacterState): ActionRowBuilder<StringSelectMenuBuilder> {
+  const char = getChar(state);
   const weaponTypes = getWeaponTypes(char);
 
   const select = new StringSelectMenuBuilder()
@@ -296,7 +317,7 @@ function buildWeaponSelectRow(char: CharacterData, activeWeapon: string): Action
         label: WEAPON_NAMES[wt] ?? wt,
         value: wt,
         emoji: parseEmoji(WEAPON_EMOJIS[wt]),
-        default: wt === activeWeapon,
+        default: wt === state.activeWeapon,
       })),
     );
 
@@ -304,22 +325,21 @@ function buildWeaponSelectRow(char: CharacterData, activeWeapon: string): Action
 }
 
 function buildComponents(
-  char: CharacterData,
-  page: Page,
-  activeWeapon: string,
+  state: CharacterState,
 ): (ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>)[] {
   const rows: (ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>)[] = [
-    buildButtonRow(char, page),
+    buildButtonRow(state),
   ];
 
-  if (page === "skills") {
-    rows.push(buildWeaponSelectRow(char, activeWeapon));
+  if (state.page === "skills") {
+    rows.push(buildWeaponSelectRow(state));
   }
 
   return rows;
 }
 
-function buildExpiredComponents(char: CharacterData): ActionRowBuilder<ButtonBuilder> {
+function buildExpiredComponents(state: CharacterState): ActionRowBuilder<ButtonBuilder> {
+  const char = getChar(state);
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId("char:expired:overview")
@@ -334,11 +354,24 @@ function buildExpiredComponents(char: CharacterData): ActionRowBuilder<ButtonBui
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(true),
     new ButtonBuilder()
+      .setCustomId("char:expired:lang")
+      .setLabel(state.lang === "fr" ? "EN" : "FR")
+      .setEmoji(state.lang === "fr" ? "🇬🇧" : "🇫🇷")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(true),
+    new ButtonBuilder()
       .setLabel("Fiche complète")
       .setURL(char.url)
       .setStyle(ButtonStyle.Link)
       .setEmoji("🔗"),
   );
+}
+
+function buildCurrentEmbed(state: CharacterState): EmbedBuilder {
+  const char = getChar(state);
+  return state.page === "overview"
+    ? buildOverviewEmbed(char)
+    : buildSkillsEmbed(char, state.activeWeapon);
 }
 
 // ── Command definition ──────────────────────────────────────────────
@@ -381,7 +414,7 @@ export async function handleCharacterAutocomplete(
 
 // ── Execute command ─────────────────────────────────────────────────
 
-const COLLECTOR_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+const COLLECTOR_TIMEOUT = 5 * 60 * 1000;
 
 export async function handleCharacterCommand(
   interaction: ChatInputCommandInteraction,
@@ -391,13 +424,25 @@ export async function handleCharacterCommand(
   await interaction.deferReply();
 
   try {
-    const char = await apiClient.getCharacter(slug);
-    const weaponTypes = getWeaponTypes(char);
-    let activeWeapon = weaponTypes[0] ?? "";
+    // Fetch both languages in parallel
+    const [charFr, charEn] = await Promise.all([
+      apiClient.getCharacter(slug, "fr"),
+      apiClient.getCharacter(slug, "en"),
+    ]);
+
+    const weaponTypes = getWeaponTypes(charFr);
+
+    const state: CharacterState = {
+      fr: charFr,
+      en: charEn,
+      lang: "fr",
+      page: "overview",
+      activeWeapon: weaponTypes[0] ?? "",
+    };
 
     const reply = await interaction.editReply({
-      embeds: [buildOverviewEmbed(char)],
-      components: buildComponents(char, "overview", activeWeapon),
+      embeds: [buildCurrentEmbed(state)],
+      components: buildComponents(state),
     });
 
     const collector = reply.createMessageComponentCollector({
@@ -411,33 +456,40 @@ export async function handleCharacterCommand(
       }
 
       if (i.isButton()) {
-        const page = i.customId.split(":")[2] as Page;
+        const action = i.customId.split(":")[2];
 
-        if (page === "overview") {
-          await i.update({
-            embeds: [buildOverviewEmbed(char)],
-            components: buildComponents(char, "overview", activeWeapon),
-          });
-        } else {
-          await i.update({
-            embeds: [buildSkillsEmbed(char, activeWeapon)],
-            components: buildComponents(char, "skills", activeWeapon),
-          });
+        if (action === "overview") {
+          state.page = "overview";
+        } else if (action === "skills") {
+          state.page = "skills";
+        } else if (action === "lang") {
+          state.lang = state.lang === "fr" ? "en" : "fr";
+          // Reset weapon to first of current lang data
+          const char = getChar(state);
+          const wt = getWeaponTypes(char);
+          if (!wt.includes(state.activeWeapon)) {
+            state.activeWeapon = wt[0] ?? "";
+          }
         }
+
+        await i.update({
+          embeds: [buildCurrentEmbed(state)],
+          components: buildComponents(state),
+        });
       }
 
       if (i.isStringSelectMenu()) {
-        activeWeapon = i.values[0];
+        state.activeWeapon = i.values[0];
         await i.update({
-          embeds: [buildSkillsEmbed(char, activeWeapon)],
-          components: buildComponents(char, "skills", activeWeapon),
+          embeds: [buildCurrentEmbed(state)],
+          components: buildComponents(state),
         });
       }
     });
 
     collector.on("end", async () => {
       try {
-        await interaction.editReply({ components: [buildExpiredComponents(char)] });
+        await interaction.editReply({ components: [buildExpiredComponents(state)] });
       } catch { /* message may have been deleted */ }
     });
   } catch (err) {
