@@ -122,9 +122,11 @@ client.on("messageReactionAdd", async (reaction, user) => {
   const config = data.find((r) => r.messageId === reaction.message.id);
   if (!config) return;
 
-  const emoji = reaction.emoji.name;
-  if (!emoji) return;
-  const roleId = config.mappings[emoji];
+  const emojiKey = reaction.emoji.id
+    ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
+    : reaction.emoji.name;
+  if (!emojiKey) return;
+  const roleId = config.mappings[emojiKey];
   if (!roleId) return;
 
   const member = await reaction.message.guild?.members.fetch(user.id).catch(() => null);
@@ -151,9 +153,11 @@ client.on("messageReactionRemove", async (reaction, user) => {
   const config = data.find((r) => r.messageId === reaction.message.id);
   if (!config) return;
 
-  const emoji = reaction.emoji.name;
-  if (!emoji) return;
-  const roleId = config.mappings[emoji];
+  const emojiKey = reaction.emoji.id
+    ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
+    : reaction.emoji.name;
+  if (!emojiKey) return;
+  const roleId = config.mappings[emojiKey];
   if (!roleId) return;
 
   const member = await reaction.message.guild?.members.fetch(user.id).catch(() => null);
