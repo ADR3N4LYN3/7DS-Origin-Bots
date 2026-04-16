@@ -79,6 +79,7 @@ export async function handleRoleButtonClick(interaction: ButtonInteraction) {
       await member.roles.add(roleId);
       await interaction.reply({ content: `✅ Rôle **${role.name}** ajouté !`, flags: 64 });
     }
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 3000);
   } catch (err) {
     console.error("Failed to toggle role:", err);
     await interaction.reply({ content: "❌ Impossible de modifier ce rôle.", flags: 64 });
