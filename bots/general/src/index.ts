@@ -10,7 +10,7 @@ import {
 } from "discord.js";
 import { buildClearCommand, handleClearCommand } from "./commands/clear.js";
 import { buildSondageCommand, handleSondageCommand } from "./commands/sondage.js";
-import { buildReactionRoleCommand, handleReactionRoleCommand, loadReactionRoles } from "./commands/reactionrole.js";
+import { buildReactionRoleCommand, handleReactionRoleCommand, handleRoleButtonClick } from "./commands/reactionrole.js";
 import { buildRepostCommand, handleRepostCommand } from "./commands/repost.js";
 import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
 import { handleGuildMemberAdd } from "./events/welcome.js";
@@ -111,68 +111,12 @@ client.on("voiceStateUpdate", (oldState, newState) => {
   handleVoiceStateUpdate(oldState, newState);
 });
 
-// ── Reaction roles ──────────────────────────────────────────────────
+// ── Role buttons ────────────────────────────────────────────────────
 
-client.on("messageReactionAdd", async (reaction, user) => {
-  if (user.bot) return;
-  if (reaction.partial) await reaction.fetch();
-  if (reaction.message.partial) await reaction.message.fetch();
-
-  const data = loadReactionRoles();
-  const config = data.find((r) => r.messageId === reaction.message.id);
-  if (!config) return;
-
-  const emojiKey = reaction.emoji.id
-    ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
-    : reaction.emoji.name;
-  if (!emojiKey) return;
-  const roleId = config.mappings[emojiKey];
-  if (!roleId) return;
-
-  const member = await reaction.message.guild?.members.fetch(user.id).catch(() => null);
-  if (!member) return;
-
-  await member.roles.add(roleId).catch((err) =>
-    console.error("Failed to add role:", err),
-  );
-
-  const role = reaction.message.guild?.roles.cache.get(roleId);
-  const channel = reaction.message.channel;
-  if (channel && "send" in channel) {
-    const msg = await channel.send(`✅ <@${user.id}> → rôle **${role?.name ?? roleId}** ajouté !`).catch(() => null);
-    if (msg) setTimeout(() => msg.delete().catch(() => {}), 3000);
-  }
-});
-
-client.on("messageReactionRemove", async (reaction, user) => {
-  if (user.bot) return;
-  if (reaction.partial) await reaction.fetch();
-  if (reaction.message.partial) await reaction.message.fetch();
-
-  const data = loadReactionRoles();
-  const config = data.find((r) => r.messageId === reaction.message.id);
-  if (!config) return;
-
-  const emojiKey = reaction.emoji.id
-    ? `<:${reaction.emoji.name}:${reaction.emoji.id}>`
-    : reaction.emoji.name;
-  if (!emojiKey) return;
-  const roleId = config.mappings[emojiKey];
-  if (!roleId) return;
-
-  const member = await reaction.message.guild?.members.fetch(user.id).catch(() => null);
-  if (!member) return;
-
-  await member.roles.remove(roleId).catch((err) =>
-    console.error("Failed to remove role:", err),
-  );
-
-  const role = reaction.message.guild?.roles.cache.get(roleId);
-  const channel = reaction.message.channel;
-  if (channel && "send" in channel) {
-    const msg = await channel.send(`❌ <@${user.id}> → rôle **${role?.name ?? roleId}** retiré.`).catch(() => null);
-    if (msg) setTimeout(() => msg.delete().catch(() => {}), 3000);
-  }
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isButton()) return;
+  if (!interaction.customId.startsWith("rr:")) return;
+  await handleRoleButtonClick(interaction);
 });
 
 // ── Slash command handling ───────────────────────────────────────────

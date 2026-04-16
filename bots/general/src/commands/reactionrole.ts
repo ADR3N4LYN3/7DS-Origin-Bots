@@ -6,40 +6,83 @@ import {
   TextInputStyle,
   ActionRowBuilder,
   ModalSubmitInteraction,
+  ButtonBuilder,
+  ButtonStyle,
+  ButtonInteraction,
   EmbedBuilder,
+  ComponentType,
   type TextChannel,
 } from "discord.js";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
 import { hasAdminRole, splitContent } from "../utils.js";
 
-const DATA_PATH = join(process.cwd(), "data", "reactionroles.json");
+// ── Button helpers ──────────────────────────────────────────────────
 
-export interface ReactionRoleMapping {
-  messageId: string;
-  channelId: string;
-  mappings: Record<string, string>; // emoji → roleId
-}
-
-// ── In-memory cache ─────────────────────────────────────────────────
-
-let cache: ReactionRoleMapping[] | null = null;
-
-export function loadReactionRoles(): ReactionRoleMapping[] {
-  if (cache) return cache;
-  if (!existsSync(DATA_PATH)) {
-    cache = [];
-    return cache;
+function parseEmoji(raw: string): { name: string; id?: string; animated?: boolean } | string {
+  // Custom emoji: <:name:id> or <a:name:id>
+  const match = raw.match(/^<(a)?:(\w+):(\d+)>$/);
+  if (match) {
+    return { animated: !!match[1], name: match[2], id: match[3] };
   }
-  cache = JSON.parse(readFileSync(DATA_PATH, "utf-8"));
-  return cache!;
+  // Unicode emoji
+  return raw;
 }
 
-function saveReactionRoles(data: ReactionRoleMapping[]) {
-  const dir = join(process.cwd(), "data");
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
-  cache = data;
+function buildRoleButtons(
+  mappings: { emoji: string; roleId: string; roleName: string }[],
+): ActionRowBuilder<ButtonBuilder>[] {
+  const rows: ActionRowBuilder<ButtonBuilder>[] = [];
+  let currentRow = new ActionRowBuilder<ButtonBuilder>();
+
+  for (const { emoji, roleId, roleName } of mappings) {
+    if (currentRow.components.length >= 5) {
+      rows.push(currentRow);
+      currentRow = new ActionRowBuilder<ButtonBuilder>();
+    }
+
+    const btn = new ButtonBuilder()
+      .setCustomId(`rr:${roleId}`)
+      .setLabel(roleName)
+      .setStyle(ButtonStyle.Secondary)
+      .setEmoji(parseEmoji(emoji));
+
+    currentRow.addComponents(btn);
+  }
+
+  if (currentRow.components.length > 0) rows.push(currentRow);
+  return rows;
+}
+
+// ── Button interaction handler ──────────────────────────────────────
+
+export async function handleRoleButtonClick(interaction: ButtonInteraction) {
+  const roleId = interaction.customId.slice(3); // strip "rr:"
+
+  const member = interaction.guild?.members.cache.get(interaction.user.id)
+    ?? await interaction.guild?.members.fetch(interaction.user.id).catch(() => null);
+
+  if (!member) {
+    await interaction.reply({ content: "❌ Erreur : membre introuvable.", flags: 64 });
+    return;
+  }
+
+  const role = interaction.guild?.roles.cache.get(roleId);
+  if (!role) {
+    await interaction.reply({ content: "❌ Erreur : rôle introuvable.", flags: 64 });
+    return;
+  }
+
+  try {
+    if (member.roles.cache.has(roleId)) {
+      await member.roles.remove(roleId);
+      await interaction.reply({ content: `❌ Rôle **${role.name}** retiré.`, flags: 64 });
+    } else {
+      await member.roles.add(roleId);
+      await interaction.reply({ content: `✅ Rôle **${role.name}** ajouté !`, flags: 64 });
+    }
+  } catch (err) {
+    console.error("Failed to toggle role:", err);
+    await interaction.reply({ content: "❌ Impossible de modifier ce rôle.", flags: 64 });
+  }
 }
 
 // ── Command ─────────────────────────────────────────────────────────
@@ -47,7 +90,7 @@ function saveReactionRoles(data: ReactionRoleMapping[]) {
 export function buildReactionRoleCommand() {
   return new SlashCommandBuilder()
     .setName("reactionrole")
-    .setDescription("Créer un message avec réactions pour attribuer des rôles (admin)")
+    .setDescription("Créer un message avec boutons pour attribuer des rôles (admin)")
     .addStringOption((opt) =>
       opt.setName("message_id").setDescription("ID du message à reposter (optionnel, sinon crée un embed)").setRequired(false),
     )
@@ -71,7 +114,7 @@ export async function handleReactionRoleCommand(
   const messageId = interaction.options.getString("message_id");
   const targetChannel = interaction.options.getChannel("channel") as TextChannel | null;
 
-  // Mode repost : message_id fourni
+  // ── Mode repost ──
   if (messageId) {
     if (!targetChannel) {
       await interaction.reply({ content: "❌ Spécifie un channel cible avec l'option `channel`.", flags: 64 });
@@ -88,43 +131,8 @@ export async function handleReactionRoleCommand(
       return;
     }
 
-    const modalId = `reactionrole_repost_${interaction.id}`;
-    const modal = new ModalBuilder()
-      .setCustomId(modalId)
-      .setTitle("🎭 Reaction Roles — Mappings");
-
-    const mappingsInput = new TextInputBuilder()
-      .setCustomId("mappings")
-      .setLabel("Mappings (emoji roleId par ligne)")
-      .setStyle(TextInputStyle.Paragraph)
-      .setRequired(true)
-      .setMaxLength(2000)
-      .setPlaceholder("🔧 123456789012345678\n🌐 987654321098765432");
-
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(mappingsInput),
-    );
-
-    await interaction.showModal(modal);
-
-    let submit: ModalSubmitInteraction;
-    try {
-      submit = await interaction.awaitModalSubmit({
-        filter: (i) => i.customId === modalId,
-        time: 300_000,
-      });
-    } catch {
-      return;
-    }
-
-    const mappings = parseMappings(submit.fields.getTextInputValue("mappings"));
-
-    if (Object.keys(mappings).length === 0) {
-      await submit.reply({ content: "❌ Aucun mapping valide trouvé.", flags: 64 });
-      return;
-    }
-
-    await submit.deferReply({ flags: 64 });
+    const mappings = await collectMappings(interaction, `reactionrole_repost_${interaction.id}`);
+    if (!mappings) return;
 
     try {
       const chunks = splitContent(original.content || "");
@@ -132,7 +140,7 @@ export async function handleReactionRoleCommand(
 
       for (let i = 0; i < chunks.length; i++) {
         const isLast = i === chunks.length - 1;
-        const payload: { content?: string; embeds?: any[]; files?: any[] } = {};
+        const payload: { content?: string; embeds?: any[]; files?: any[]; components?: any[] } = {};
 
         if (chunks[i]) payload.content = chunks[i];
 
@@ -144,63 +152,90 @@ export async function handleReactionRoleCommand(
               name: a.name ?? undefined,
             }));
           }
+          payload.components = buildRoleButtons(mappings);
         }
 
         lastMsg = await targetChannel.send(payload);
       }
 
-      if (lastMsg) {
-        for (const emoji of Object.keys(mappings)) {
-          await lastMsg.react(emoji);
-        }
-
-        const data = loadReactionRoles();
-        data.push({ messageId: lastMsg.id, channelId: targetChannel.id, mappings });
-        saveReactionRoles(data);
-      }
-
-      await submit.editReply({ content: `✅ Reaction roles configurés dans <#${targetChannel.id}>.` });
+      await interaction.followUp({ content: `✅ Reaction roles configurés dans <#${targetChannel.id}>.`, flags: 64 });
     } catch (err) {
       console.error("Failed to setup reaction roles:", err);
-      await submit.editReply({ content: "❌ Erreur lors de la configuration." });
+      await interaction.followUp({ content: "❌ Erreur lors de la configuration.", flags: 64 });
     }
 
     return;
   }
 
-  // Mode embed : pas de message_id
-  const modalId = `reactionrole_modal_${interaction.id}`;
+  // ── Mode embed ──
+  const mappings = await collectMappings(interaction, `reactionrole_modal_${interaction.id}`, true);
+  if (!mappings) return;
 
+  const channel = interaction.channel as TextChannel;
+
+  try {
+    const { titre, description } = mappings as any;
+
+    const embed = new EmbedBuilder()
+      .setColor(0x57f287)
+      .setDescription(description)
+      .setFooter({ text: "7DS Origin" });
+
+    await channel.send({
+      content: `# 🎭 ${titre}`,
+      embeds: [embed],
+      components: buildRoleButtons(mappings.items),
+    });
+
+    await interaction.followUp({ content: "✅ Reaction roles configurés.", flags: 64 });
+  } catch (err) {
+    console.error("Failed to setup reaction roles:", err);
+    await interaction.followUp({ content: "❌ Erreur lors de la configuration des reaction roles.", flags: 64 });
+  }
+}
+
+// ── Modal & mapping parser ──────────────────────────────────────────
+
+async function collectMappings(
+  interaction: ChatInputCommandInteraction,
+  modalId: string,
+  withEmbed = false,
+): Promise<any | null> {
   const modal = new ModalBuilder()
     .setCustomId(modalId)
-    .setTitle("🎭 Reaction Roles");
+    .setTitle("🎭 Reaction Roles — Mappings");
 
-  const titreInput = new TextInputBuilder()
-    .setCustomId("titre")
-    .setLabel("Titre de l'embed")
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true)
-    .setMaxLength(256);
-
-  const descInput = new TextInputBuilder()
-    .setCustomId("description")
-    .setLabel("Description (Markdown supporté)")
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true)
-    .setMaxLength(4000);
-
-  const mappingsInput = new TextInputBuilder()
-    .setCustomId("mappings")
-    .setLabel("Mappings (emoji roleId par ligne)")
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true)
-    .setMaxLength(2000)
-    .setPlaceholder("🎮 123456789012345678\n🎨 987654321098765432");
+  if (withEmbed) {
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("titre")
+          .setLabel("Titre de l'embed")
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true)
+          .setMaxLength(256),
+      ),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(
+        new TextInputBuilder()
+          .setCustomId("description")
+          .setLabel("Description (Markdown supporté)")
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true)
+          .setMaxLength(4000),
+      ),
+    );
+  }
 
   modal.addComponents(
-    new ActionRowBuilder<TextInputBuilder>().addComponents(titreInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(descInput),
-    new ActionRowBuilder<TextInputBuilder>().addComponents(mappingsInput),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(
+      new TextInputBuilder()
+        .setCustomId("mappings")
+        .setLabel("Mappings (emoji roleId par ligne)")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(true)
+        .setMaxLength(2000)
+        .setPlaceholder("🎮 123456789012345678\n🎨 987654321098765432"),
+    ),
   );
 
   await interaction.showModal(modal);
@@ -212,47 +247,35 @@ export async function handleReactionRoleCommand(
       time: 300_000,
     });
   } catch {
-    return;
+    return null;
   }
 
-  const titre = submit.fields.getTextInputValue("titre");
-  const description = submit.fields.getTextInputValue("description");
-  const mappings = parseMappings(submit.fields.getTextInputValue("mappings"));
+  const raw = submit.fields.getTextInputValue("mappings");
+  const items = parseMappings(raw, interaction);
 
-  if (Object.keys(mappings).length === 0) {
+  if (items.length === 0) {
     await submit.reply({ content: "❌ Aucun mapping valide trouvé.", flags: 64 });
-    return;
+    return null;
   }
 
   await submit.deferReply({ flags: 64 });
 
-  const embed = new EmbedBuilder()
-    .setColor(0x57f287)
-    .setDescription(description)
-    .setFooter({ text: "7DS Origin" });
-
-  const channel = interaction.channel as TextChannel;
-
-  try {
-    const msg = await channel.send({ content: `# 🎭 ${titre}`, embeds: [embed] });
-
-    for (const emoji of Object.keys(mappings)) {
-      await msg.react(emoji);
-    }
-
-    const data = loadReactionRoles();
-    data.push({ messageId: msg.id, channelId: channel.id, mappings });
-    saveReactionRoles(data);
-
-    await submit.editReply({ content: "✅ Reaction roles configurés." });
-  } catch (err) {
-    console.error("Failed to setup reaction roles:", err);
-    await submit.editReply({ content: "❌ Erreur lors de la configuration des reaction roles." });
+  if (withEmbed) {
+    return {
+      titre: submit.fields.getTextInputValue("titre"),
+      description: submit.fields.getTextInputValue("description"),
+      items,
+    };
   }
+
+  return items;
 }
 
-function parseMappings(raw: string): Record<string, string> {
-  const mappings: Record<string, string> = {};
+function parseMappings(
+  raw: string,
+  interaction: ChatInputCommandInteraction,
+): { emoji: string; roleId: string; roleName: string }[] {
+  const results: { emoji: string; roleId: string; roleName: string }[] = [];
   const lines = raw.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
 
   for (const line of lines) {
@@ -260,8 +283,14 @@ function parseMappings(raw: string): Record<string, string> {
     if (parts.length < 2) continue;
     const emoji = parts[0];
     const roleId = parts[parts.length - 1];
-    mappings[emoji] = roleId;
+
+    const role = interaction.guild?.roles.cache.get(roleId);
+    results.push({
+      emoji,
+      roleId,
+      roleName: role?.name ?? roleId,
+    });
   }
 
-  return mappings;
+  return results;
 }
