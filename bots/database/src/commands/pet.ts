@@ -186,13 +186,18 @@ function buildOverviewEmbed(state: PetState): EmbedBuilder {
     const cap: string[] = [];
     if (pet.captureData.difficulty != null) cap.push(`${L(state, "Difficulté", "Difficulty")} **${pet.captureData.difficulty}**`);
     if (pet.captureData.baseRate != null) cap.push(`${L(state, "Taux base", "Base rate")} **${pet.captureData.baseRate}%**`);
-    if (pet.captureData.resistance != null) cap.push(`${L(state, "Résistance", "Resistance")} **${pet.captureData.resistance}**`);
+    if (pet.captureData.resistance != null) cap.push(`${L(state, "Résistance", "Resistance")} **${pet.captureData.resistance}%**`);
 
-    const best = pet.captureData.bestPotion;
-    if (best) {
-      const gradeEmojiName = POTION_GRADE_EMOJI_NAMES[best.grade];
-      const potionIcon = getEmoji(best.gameId) ?? (gradeEmojiName && getEmoji(gradeEmojiName)) ?? "🧪";
-      cap.push(`${potionIcon} ${L(state, "Meilleure potion", "Best potion")} : **${best.name}** → **${best.finalRate}%**`);
+    // Sort potions by grade ascending (grade2 → grade5) for display
+    const potions = (pet.captureData.potions ?? []).slice().sort((a, b) => {
+      const gradeNum = (g: string) => parseInt(g.replace("grade", ""), 10) || 0;
+      return gradeNum(a.grade) - gradeNum(b.grade);
+    });
+
+    for (const p of potions) {
+      const gradeEmojiName = POTION_GRADE_EMOJI_NAMES[p.grade];
+      const icon = getEmoji(p.gameId) ?? (gradeEmojiName && getEmoji(gradeEmojiName)) ?? "🧪";
+      cap.push(`${icon} ${p.name} → **${p.finalRate}%**`);
     }
 
     embed.addFields({
