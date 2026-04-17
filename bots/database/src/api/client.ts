@@ -1,4 +1,4 @@
-import type { CharacterData, CharacterSearchResult } from "./types.js";
+import type { CharacterData, CharacterSearchResult, PetData, PetSearchResult } from "./types.js";
 
 export class ApiClient {
   private baseUrl: string;
@@ -35,5 +35,15 @@ export class ApiClient {
 
   async getCharacter(slug: string, lang = "fr"): Promise<CharacterData> {
     return this.fetch(`/characters/${slug}?lang=${lang}`);
+  }
+
+  async searchPets(query: string, lang = "fr"): Promise<PetSearchResult[]> {
+    const params = new URLSearchParams({ lang });
+    if (query) params.set("search", query);
+    return this.fetch(`/pets?${params}`);
+  }
+
+  async getPet(slug: string, lang = "fr"): Promise<PetData> {
+    return this.fetch(`/pets/${slug}?lang=${lang}`);
   }
 }

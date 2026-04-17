@@ -82,3 +82,95 @@ export interface CharacterData {
   skills: CharacterSkill[];
   url: string;
 }
+
+// ── Pets ────────────────────────────────────────────────────────────
+
+export interface PetSearchResult {
+  slug: string;
+  name: string;
+  nameEn: string;
+  rarity: string;
+  petType: string;        // Localized
+  petTypeKey: string;     // RIDING, GLIDING, FLYING, SUMMON
+  imageUrl: string | null;
+}
+
+export interface PetSpeeds {
+  walk: number | null;
+  run: number | null;
+  sprint: number | null;
+  fly: number | null;
+  glide: number | null;
+  glideFwd: number | null;
+  stamina: number | null;
+}
+
+export interface PetCooldowns {
+  mountCast: number | null;
+  summon: number | null;
+  mount: number | null;
+}
+
+export interface PetFeedItem {
+  id?: string;
+  name: string;
+  iconUrl?: string | null;
+  [key: string]: unknown;
+}
+
+export interface PetObtainSource {
+  type?: string;
+  label?: string;
+  [key: string]: unknown;
+}
+
+export interface PetCaptureData {
+  difficulty?: string | number | null;
+  baseRate?: number | null;
+  resistance?: number | null;
+  monsters?: unknown[];
+  statsByLevel?: unknown;
+}
+
+export interface PetBuff {
+  buffId: string;
+  buffType: string;
+  nameFr: string;
+  nameEn: string;
+  descriptionFr?: string;
+  descriptionEn?: string;
+}
+
+export interface PetSkill {
+  name: string;
+  description: string | null;
+  iconUrl: string | null;
+  buffs: PetBuff[];
+  gameId?: string;
+  iconId?: string;
+  [key: string]: unknown;
+}
+
+export interface PetData {
+  slug: string;
+  name: string;
+  nameEn: string;
+  rarity: string;
+  petType: string;
+  petTypeKey: string;                  // RIDING, GLIDING, FLYING, SUMMON
+  obtainMethod: string;
+  obtainMethodKey: string;             // CAPTURE, FEED, DEFAULT, OTHER, MONSTER_DROP, DUNGEON, QUEST, SHOP, FISHING
+  autolootType: string | null;
+  autolootTypeKey: string | null;      // DROP, MINING, COLLECTION | null
+  mountable: boolean;
+  imageUrl: string;
+  iconUrl: string | null;
+  speeds: PetSpeeds;
+  cooldowns: PetCooldowns;
+  feedItem: PetFeedItem | null;
+  obtainSources: PetObtainSource[];
+  captureData: PetCaptureData | null;
+  activeSkills: PetSkill[];
+  passiveSkill: PetSkill | null;
+  url: string;
+}

@@ -8,6 +8,7 @@ import {
 } from "discord.js";
 import { ApiClient } from "./api/client.js";
 import { buildCharacterCommand, handleCharacterCommand, handleCharacterAutocomplete } from "./commands/character.js";
+import { buildPetCommand, handlePetCommand, handlePetAutocomplete } from "./commands/pet.js";
 import { initBotEmojis } from "./utils/botEmojis.js";
 
 // ── Error handling ──────────────────────────────────────────────────
@@ -49,6 +50,8 @@ client.on("interactionCreate", async (interaction: Interaction) => {
   if (interaction.isAutocomplete()) {
     if (interaction.commandName === "character") {
       await handleCharacterAutocomplete(interaction, apiClient);
+    } else if (interaction.commandName === "pet") {
+      await handlePetAutocomplete(interaction, apiClient);
     }
     return;
   }
@@ -56,6 +59,8 @@ client.on("interactionCreate", async (interaction: Interaction) => {
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === "character") {
       await handleCharacterCommand(interaction, apiClient);
+    } else if (interaction.commandName === "pet") {
+      await handlePetCommand(interaction, apiClient);
     }
   }
 });
@@ -67,6 +72,7 @@ async function registerCommands() {
 
   const commands = [
     buildCharacterCommand(),
+    buildPetCommand(),
   ].map((c) => c.toJSON());
 
   await rest.put(Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID), {
