@@ -111,9 +111,24 @@ export interface PetFeedItem {
 }
 
 export interface PetObtainSource {
-  type?: string;
-  label?: string;
-  [key: string]: unknown;
+  type: string;              // UPPERCASE: MONSTER_DROP, QUEST, SHOP, CODEX, EVENT, DUNGEON, FISHING, FIELD_BOSS, MISSION
+  label: string;             // Localized
+  metadata?: {
+    packKey?: string;
+    packRate?: number;
+    intraPackRate?: number;
+    isRandom?: boolean;
+    entitySlug?: string;
+    entitySlugFr?: string;
+    entityType?: string;
+    price?: number;
+    currency?: string;
+    shopNameFr?: string;
+    shopNameEn?: string;
+    paymentType?: string;
+    worldLevel?: number;
+    [key: string]: unknown;
+  };
 }
 
 export interface PetPotion {

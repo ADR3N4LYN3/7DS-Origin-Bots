@@ -38,6 +38,18 @@ const AUTOLOOT_UNICODE: Record<string, string> = {
   COLLECTION: "🌿",
 };
 
+const SOURCE_UNICODE: Record<string, string> = {
+  MONSTER_DROP: "💀",
+  DUNGEON: "🏰",
+  QUEST: "📜",
+  SHOP: "🛒",
+  CODEX: "📖",
+  EVENT: "🎉",
+  FISHING: "🎣",
+  FIELD_BOSS: "👹",
+  MISSION: "🎯",
+};
+
 // Potion grade → application emoji name
 const POTION_GRADE_EMOJI_NAMES: Record<string, string> = {
   grade2: "popobase",
@@ -168,20 +180,28 @@ function buildOverviewEmbed(state: PetState): EmbedBuilder {
     });
   }
 
-  // ── Sources d'obtention détaillées (only if label available) ──
+  // ── Sources d'obtention détaillées ──
   if (pet.obtainSources.length > 0) {
-    const sourceLines = pet.obtainSources
-      .slice(0, 5)
-      .map((src) => src.label ?? src.type ?? null)
-      .filter((l): l is string => l != null)
-      .map((l) => `└ ${l}`);
+    const sourceLines = pet.obtainSources.slice(0, 5).map((src) => {
+      const icon = SOURCE_UNICODE[src.type] ?? "📍";
+      const meta = src.metadata;
+      const extras: string[] = [];
 
-    if (sourceLines.length > 0) {
-      embed.addFields({
-        name: L(state, "📍 Sources", "📍 Sources"),
-        value: sourceLines.join("\n").slice(0, 1024),
-      });
-    }
+      if (src.type === "SHOP" && meta?.price != null) {
+        extras.push(`💰 ${fmt(meta.price)}${meta.currency ? ` ${meta.currency}` : ""}`);
+      }
+      if (src.type === "DUNGEON" && meta?.worldLevel != null) {
+        extras.push(`Lv.${meta.worldLevel}`);
+      }
+
+      const suffix = extras.length > 0 ? ` · ${extras.join(" · ")}` : "";
+      return `${icon} ${src.label}${suffix}`;
+    });
+
+    embed.addFields({
+      name: L(state, "📍 Sources", "📍 Sources"),
+      value: tree(sourceLines).slice(0, 1024),
+    });
   }
 
   // ── Capture data (si applicable) ──
