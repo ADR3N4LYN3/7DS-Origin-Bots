@@ -8,6 +8,7 @@ import {
 } from "discord.js";
 import { ApiClient } from "./api/client.js";
 import { buildCharacterCommand, handleCharacterCommand, handleCharacterAutocomplete } from "./commands/character.js";
+import { initBotEmojis } from "./utils/botEmojis.js";
 
 // ── Error handling ──────────────────────────────────────────────────
 
@@ -33,12 +34,13 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds],
 });
 
-client.once("clientReady", (c) => {
+client.once("clientReady", async (c) => {
   console.log(`Discord bot ready — logged in as ${c.user.tag}`);
   c.user.setPresence({
     activities: [{ name: "7dsorigin.app", type: ActivityType.Watching }],
     status: "online",
   });
+  await initBotEmojis(c);
 });
 
 // ── Interaction handling ────────────────────────────────────────────

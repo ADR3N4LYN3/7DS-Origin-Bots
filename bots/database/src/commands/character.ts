@@ -10,47 +10,51 @@ import {
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
 import type { CharacterData, CharacterSkill } from "../api/types.js";
+import { getEmoji } from "../utils/botEmojis.js";
 
-// ── Emoji mappings (keyed by API *Key values) ───────────────────────
+// ── Key → emoji name mappings (resolved at runtime via getEmoji) ────
 
-const ELEMENT_EMOJIS: Record<string, string> = {
-  FIRE: "<:Fire:1488554913406652486>",
-  ICE: "<:Ice:1488555000790646884>",
-  LIGHT: "<:Light:1488554768585719931>",
-  DARK: "<:Darkness:1488553687516319857>",
-  WIND: "<:Wind:1488554876588789780>",
-  EARTH: "<:Earth:1488554844599091294>",
-  THUNDER: "<:Thunder:1488554973838184518>",
-  HOLY: "✨",
+const ELEMENT_EMOJI_NAMES: Record<string, string> = {
+  FIRE: "fire",
+  ICE: "ice",
+  EARTH: "earth",
+  WIND: "wind",
+  THUNDER: "thunder",
+  HOLY: "holy",
+  LIGHT: "holy",       // alias
+  DARK: "dark",
+  DEFAULT: "physics",
+  PHYSICS: "physics",  // alias
 };
 
 const ELEMENT_UNICODE: Record<string, string> = {
-  FIRE: "🔥", ICE: "🧊", LIGHT: "☀️", DARK: "🌑",
-  WIND: "🌪️", EARTH: "🌿", THUNDER: "⚡", HOLY: "✨",
+  FIRE: "🔥", ICE: "🧊", LIGHT: "☀️", HOLY: "✨",
+  DARK: "🌑", WIND: "🌪️", EARTH: "🌿", THUNDER: "⚡",
+  DEFAULT: "🔮", PHYSICS: "🔮",
 };
 
 const RARITY_COLORS: Record<string, number> = {
   SSR: 0xffd700, SR: 0xc084fc, R: 0x60a5fa,
 };
 
-const RARITY_EMOJIS: Record<string, string> = {
-  SSR: "<:SSR:1488553581329256479>",
-  SR: "<:SR:1488553611733762058>",
+const RARITY_EMOJI_NAMES: Record<string, string> = {
+  SSR: "badge_ssr",
+  SR: "badge_sr",
 };
 
-const WEAPON_EMOJIS: Record<string, string> = {
-  SWORD1H: "<:ItemDivision_sword1h:1493240454827999273>",
-  SWORDDUAL: "<:ItemDivision_sworddual:1493240457184935967>",
-  SWORD2H: "<:ItemDivision_sword2h:1493240455888896192>",
-  AXE: "<:ItemDivision_axe:1493240409412079647>",
-  STAFF: "<:ItemDivision_staff:1493240453053546646>",
-  LANCE: "<:ItemDivision_lance:1493240449123483728>",
-  RAPIER: "<:ItemDivision_rapier:1493240450533036053>",
-  SHIELD: "<:ItemDivision_shield:1493240451866824724>",
-  WAND: "<:ItemDivision_wand:1493240458502078595>",
-  BOOK: "<:ItemDivision_book:1493240431985692754>",
-  GAUNTLETS: "<:ItemDivision_gauntlets:1493240447202754670>",
-  CUDGEL3C: "<:ItemDivision_cudgel3c:1493240445856120866>",
+const WEAPON_EMOJI_NAMES: Record<string, string> = {
+  SWORD1H: "ItemDivision_sword1h",
+  SWORDDUAL: "ItemDivision_sworddual",
+  SWORD2H: "ItemDivision_sword2h",
+  AXE: "ItemDivision_axe",
+  STAFF: "ItemDivision_staff",
+  LANCE: "ItemDivision_lance",
+  RAPIER: "ItemDivision_rapier",
+  SHIELD: "ItemDivision_shield",
+  WAND: "ItemDivision_wand",
+  BOOK: "ItemDivision_book",
+  GAUNTLETS: "ItemDivision_gauntlets",
+  CUDGEL3C: "ItemDivision_cudgel3c",
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -74,19 +78,28 @@ function tree(items: string[]): string {
 }
 
 function parseEmoji(key: string): { id: string; name: string } | undefined {
-  const str = WEAPON_EMOJIS[key];
+  const name = WEAPON_EMOJI_NAMES[key];
+  if (!name) return undefined;
+  const str = getEmoji(name);
   if (!str) return undefined;
-  const match = str.match(/<:(\w+):(\d+)>/);
+  const match = str.match(/<a?:(\w+):(\d+)>/);
   if (!match) return undefined;
   return { name: match[1], id: match[2] };
 }
 
 function elemEmoji(key: string): string {
-  return ELEMENT_EMOJIS[key] ?? "🔮";
+  const name = ELEMENT_EMOJI_NAMES[key];
+  return (name && getEmoji(name)) || ELEMENT_UNICODE[key] || "🔮";
 }
 
 function weaponEmoji(key: string): string {
-  return WEAPON_EMOJIS[key] ?? "⚔️";
+  const name = WEAPON_EMOJI_NAMES[key];
+  return (name && getEmoji(name)) || "⚔️";
+}
+
+function rarityEmoji(rarity: string): string {
+  const name = RARITY_EMOJI_NAMES[rarity];
+  return (name && getEmoji(name)) || "";
 }
 
 function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSkill[]> {
@@ -106,7 +119,6 @@ type Lang = "fr" | "en";
 // ── Shared header ───────────────────────────────────────────────────
 
 function baseEmbed(char: CharacterData): EmbedBuilder {
-  const rarityEmoji = RARITY_EMOJIS[char.rarity] ?? "";
   const color = RARITY_COLORS[char.rarity] ?? 0xc9a84c;
 
   const title = char.name !== char.nameEn
@@ -115,7 +127,7 @@ function baseEmbed(char: CharacterData): EmbedBuilder {
 
   return new EmbedBuilder()
     .setColor(color)
-    .setDescription(`${elemEmoji(char.elementKey)} ${char.element} · ${char.role} ${rarityEmoji}\n\n**${title}**`)
+    .setDescription(`${elemEmoji(char.elementKey)} ${char.element} · ${char.role} ${rarityEmoji(char.rarity)}\n\n**${title}**`)
     .setThumbnail(char.imageUrl || null)
     .setFooter({ text: "7DS Origin · 7dsorigin.app" });
 }
