@@ -104,12 +104,14 @@ function L(state: PetState, fr: string, en: string): string {
 
 // ── Shared header ──────────────────────────────────────────────────
 
-function baseEmbed(pet: PetData): EmbedBuilder {
+function baseEmbed(state: PetState): EmbedBuilder {
+  const pet = getPet(state);
   const color = RARITY_COLORS[pet.rarity] ?? 0xc9a84c;
 
-  const title = pet.name !== pet.nameEn
-    ? `${pet.name} [${pet.nameEn}]`
-    : pet.name;
+  // Primary name = current lang, secondary = the other lang
+  const primary = pet.name;
+  const secondary = state.lang === "fr" ? state.en.name : state.fr.name;
+  const title = primary !== secondary ? `${primary} [${secondary}]` : primary;
 
   return new EmbedBuilder()
     .setColor(color)
@@ -122,7 +124,7 @@ function baseEmbed(pet: PetData): EmbedBuilder {
 
 function buildOverviewEmbed(state: PetState): EmbedBuilder {
   const pet = getPet(state);
-  const embed = baseEmbed(pet);
+  const embed = baseEmbed(state);
 
   // ── Info générale ──
   const infoItems = [
@@ -197,7 +199,7 @@ function buildOverviewEmbed(state: PetState): EmbedBuilder {
 
 function buildSkillsEmbed(state: PetState): EmbedBuilder {
   const pet = getPet(state);
-  const embed = baseEmbed(pet);
+  const embed = baseEmbed(state);
 
   // ── Skills actifs ──
   if (pet.activeSkills.length > 0) {

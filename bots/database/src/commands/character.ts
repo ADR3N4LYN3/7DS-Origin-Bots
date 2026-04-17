@@ -118,12 +118,11 @@ type Lang = "fr" | "en";
 
 // ── Shared header ───────────────────────────────────────────────────
 
-function baseEmbed(char: CharacterData): EmbedBuilder {
+function baseEmbed(char: CharacterData, secondaryName?: string): EmbedBuilder {
   const color = RARITY_COLORS[char.rarity] ?? 0xc9a84c;
 
-  const title = char.name !== char.nameEn
-    ? `${char.name} [${char.nameEn}]`
-    : char.name;
+  const other = secondaryName ?? char.nameEn;
+  const title = char.name !== other ? `${char.name} [${other}]` : char.name;
 
   return new EmbedBuilder()
     .setColor(color)
@@ -134,8 +133,8 @@ function baseEmbed(char: CharacterData): EmbedBuilder {
 
 // ── Page 1 : Overview ──────────────────────────────────────────────
 
-function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
-  const embed = baseEmbed(char);
+function buildOverviewEmbed(char: CharacterData, secondaryName?: string): EmbedBuilder {
+  const embed = baseEmbed(char, secondaryName);
   const s = char.stats;
 
   const statsLabel = char.statsLevel ? `📊 Stats (Lv.${char.statsLevel})` : "📊 Stats";
@@ -195,8 +194,8 @@ function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
 
 // ── Page 2 : Skills ────────────────────────────────────────────────
 
-function buildSkillsEmbed(char: CharacterData, weaponTypeKey: string): EmbedBuilder {
-  const embed = baseEmbed(char);
+function buildSkillsEmbed(char: CharacterData, weaponTypeKey: string, secondaryName?: string): EmbedBuilder {
+  const embed = baseEmbed(char, secondaryName);
   const grouped = groupSkillsByWeapon(char.skills);
   const skills = grouped.get(weaponTypeKey) ?? [];
 
@@ -359,9 +358,10 @@ function buildExpiredComponents(state: CharacterState): ActionRowBuilder<ButtonB
 
 function buildCurrentEmbed(state: CharacterState): EmbedBuilder {
   const char = getChar(state);
+  const secondaryName = state.lang === "fr" ? state.en.name : state.fr.name;
   return state.page === "overview"
-    ? buildOverviewEmbed(char)
-    : buildSkillsEmbed(char, state.activeWeapon);
+    ? buildOverviewEmbed(char, secondaryName)
+    : buildSkillsEmbed(char, state.activeWeapon, secondaryName);
 }
 
 // ── Command definition ──────────────────────────────────────────────
