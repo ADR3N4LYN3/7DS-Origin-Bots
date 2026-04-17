@@ -144,13 +144,12 @@ function buildOverviewEmbed(state: PetState): EmbedBuilder {
     value: tree(infoItems),
   });
 
-  // ── Vitesses (walk/run/fly are basis points — ÷20 for display) ──
+  // ── Vitesses (API returns player-facing values directly) ──
   const speedItems: string[] = [];
   const s = pet.speeds;
-  const bp = (n: number | null | undefined) => (n != null ? n / 20 : null);
-  if (s.walk != null) speedItems.push(`🚶 ${L(state, "Marche", "Walk")} **${fmt(bp(s.walk))}**`);
-  if (s.run != null) speedItems.push(`🏃 ${L(state, "Course", "Run")} **${fmt(bp(s.run))}**`);
-  if (s.fly != null) speedItems.push(`🦅 ${L(state, "Vol", "Fly")} **${fmt(bp(s.fly))}**`);
+  if (s.walk != null) speedItems.push(`🚶 ${L(state, "Marche", "Walk")} **${fmt(s.walk)}**`);
+  if (s.run != null) speedItems.push(`🏃 ${L(state, "Course", "Run")} **${fmt(s.run)}**`);
+  if (s.fly != null) speedItems.push(`🦅 ${L(state, "Vol", "Fly")} **${fmt(s.fly)}**`);
   if (s.glide != null) speedItems.push(`🪂 ${L(state, "Planage", "Glide")} **${fmt(s.glide)}**`);
   if (s.stamina != null) speedItems.push(`⚡ ${L(state, "Endurance", "Stamina")} **${fmt(s.stamina)}**`);
 

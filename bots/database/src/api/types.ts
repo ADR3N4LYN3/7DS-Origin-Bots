@@ -96,10 +96,10 @@ export interface PetSearchResult {
 }
 
 export interface PetSpeeds {
-  walk: number | null;       // basis points — divide by 20 for display
-  run: number | null;        // basis points — divide by 20 for display
-  fly: number | null;        // basis points — divide by 20 for display
-  glide: number | null;      // raw (player-facing)
+  walk: number | null;       // player-facing (API already divided)
+  run: number | null;        // player-facing
+  fly: number | null;        // player-facing
+  glide: number | null;      // player-facing
   stamina: number | null;    // raw (capacity)
 }
 
