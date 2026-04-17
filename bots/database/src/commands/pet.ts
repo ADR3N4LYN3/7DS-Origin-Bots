@@ -136,16 +136,14 @@ function buildOverviewEmbed(state: PetState): EmbedBuilder {
     value: tree(infoItems),
   });
 
-  // ── Vitesses (walk/run/sprint/fly are basis points — ÷20 for display) ──
+  // ── Vitesses (walk/run/fly are basis points — ÷20 for display) ──
   const speedItems: string[] = [];
   const s = pet.speeds;
   const bp = (n: number | null | undefined) => (n != null ? n / 20 : null);
   if (s.walk != null) speedItems.push(`🚶 ${L(state, "Marche", "Walk")} **${fmt(bp(s.walk))}**`);
   if (s.run != null) speedItems.push(`🏃 ${L(state, "Course", "Run")} **${fmt(bp(s.run))}**`);
-  if (s.sprint != null) speedItems.push(`💨 Sprint **${fmt(bp(s.sprint))}**`);
   if (s.fly != null) speedItems.push(`🦅 ${L(state, "Vol", "Fly")} **${fmt(bp(s.fly))}**`);
   if (s.glide != null) speedItems.push(`🪂 ${L(state, "Planage", "Glide")} **${fmt(s.glide)}**`);
-  if (s.glideFwd != null) speedItems.push(`➡️ ${L(state, "Planage avant", "Glide fwd")} **${fmt(s.glideFwd)}**`);
   if (s.stamina != null) speedItems.push(`⚡ ${L(state, "Endurance", "Stamina")} **${fmt(s.stamina)}**`);
 
   if (speedItems.length > 0) {
@@ -181,6 +179,12 @@ function buildOverviewEmbed(state: PetState): EmbedBuilder {
     if (pet.captureData.difficulty != null) cap.push(`${L(state, "Difficulté", "Difficulty")} **${pet.captureData.difficulty}**`);
     if (pet.captureData.baseRate != null) cap.push(`${L(state, "Taux base", "Base rate")} **${pet.captureData.baseRate}%**`);
     if (pet.captureData.resistance != null) cap.push(`${L(state, "Résistance", "Resistance")} **${pet.captureData.resistance}**`);
+
+    const best = pet.captureData.bestPotion;
+    if (best) {
+      cap.push(`🧪 ${L(state, "Meilleure potion", "Best potion")} : **${best.name}** → **${best.finalRate}%**`);
+    }
+
     embed.addFields({
       name: L(state, "🎯 Capture", "🎯 Capture"),
       value: tree(cap),

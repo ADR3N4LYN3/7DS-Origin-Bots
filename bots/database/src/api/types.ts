@@ -98,10 +98,8 @@ export interface PetSearchResult {
 export interface PetSpeeds {
   walk: number | null;       // basis points — divide by 20 for display
   run: number | null;        // basis points — divide by 20 for display
-  sprint: number | null;     // basis points — divide by 20 for display
   fly: number | null;        // basis points — divide by 20 for display
   glide: number | null;      // raw (player-facing)
-  glideFwd: number | null;   // raw (player-facing)
   stamina: number | null;    // raw (capacity)
 }
 
@@ -118,11 +116,22 @@ export interface PetObtainSource {
   [key: string]: unknown;
 }
 
+export interface PetPotion {
+  gameId: string;
+  name: string;
+  grade: string;
+  iconUrl: string | null;
+  catchRateBonus: number;
+  finalRate: number;  // 0-100
+}
+
 export interface PetCaptureData {
   difficulty?: string | number | null;
   baseRate?: number | null;
   resistance?: number | null;
   monsters?: unknown[];
+  potions?: PetPotion[];
+  bestPotion?: PetPotion | null;
   statsByLevel?: unknown;
 }
 
