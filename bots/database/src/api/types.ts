@@ -96,19 +96,13 @@ export interface PetSearchResult {
 }
 
 export interface PetSpeeds {
-  walk: number | null;
-  run: number | null;
-  sprint: number | null;
-  fly: number | null;
-  glide: number | null;
-  glideFwd: number | null;
-  stamina: number | null;
-}
-
-export interface PetCooldowns {
-  mountCast: number | null;
-  summon: number | null;
-  mount: number | null;
+  walk: number | null;       // basis points — divide by 20 for display
+  run: number | null;        // basis points — divide by 20 for display
+  sprint: number | null;     // basis points — divide by 20 for display
+  fly: number | null;        // basis points — divide by 20 for display
+  glide: number | null;      // raw (player-facing)
+  glideFwd: number | null;   // raw (player-facing)
+  stamina: number | null;    // raw (capacity)
 }
 
 export interface PetFeedItem {
@@ -166,7 +160,6 @@ export interface PetData {
   imageUrl: string;
   iconUrl: string | null;
   speeds: PetSpeeds;
-  cooldowns: PetCooldowns;
   feedItem: PetFeedItem | null;
   obtainSources: PetObtainSource[];
   captureData: PetCaptureData | null;
