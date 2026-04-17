@@ -182,7 +182,9 @@ function buildOverviewEmbed(state: PetState): EmbedBuilder {
 
     const best = pet.captureData.bestPotion;
     if (best) {
-      cap.push(`🧪 ${L(state, "Meilleure potion", "Best potion")} : **${best.name}** → **${best.finalRate}%**`);
+      // Try gameId first (most specific), then grade, else fallback unicode
+      const potionIcon = getEmoji(best.gameId) ?? getEmoji(best.grade) ?? "🧪";
+      cap.push(`${potionIcon} ${L(state, "Meilleure potion", "Best potion")} : **${best.name}** → **${best.finalRate}%**`);
     }
 
     embed.addFields({
