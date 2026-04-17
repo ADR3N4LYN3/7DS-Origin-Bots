@@ -118,23 +118,20 @@ type Lang = "fr" | "en";
 
 // ── Shared header ───────────────────────────────────────────────────
 
-function baseEmbed(char: CharacterData, secondaryName?: string): EmbedBuilder {
+function baseEmbed(char: CharacterData): EmbedBuilder {
   const color = RARITY_COLORS[char.rarity] ?? 0xc9a84c;
-
-  const other = secondaryName ?? char.nameEn;
-  const title = char.name !== other ? `${char.name} [${other}]` : char.name;
 
   return new EmbedBuilder()
     .setColor(color)
-    .setDescription(`${elemEmoji(char.elementKey)} ${char.element} · ${char.role} ${rarityEmoji(char.rarity)}\n\n**${title}**`)
+    .setDescription(`${elemEmoji(char.elementKey)} ${char.element} · ${char.role} ${rarityEmoji(char.rarity)}\n\n**${char.name}**`)
     .setThumbnail(char.imageUrl || null)
     .setFooter({ text: "7DS Origin · 7dsorigin.app" });
 }
 
 // ── Page 1 : Overview ──────────────────────────────────────────────
 
-function buildOverviewEmbed(char: CharacterData, secondaryName?: string): EmbedBuilder {
-  const embed = baseEmbed(char, secondaryName);
+function buildOverviewEmbed(char: CharacterData): EmbedBuilder {
+  const embed = baseEmbed(char);
   const s = char.stats;
 
   const statsLabel = char.statsLevel ? `📊 Stats (Lv.${char.statsLevel})` : "📊 Stats";
@@ -194,8 +191,8 @@ function buildOverviewEmbed(char: CharacterData, secondaryName?: string): EmbedB
 
 // ── Page 2 : Skills ────────────────────────────────────────────────
 
-function buildSkillsEmbed(char: CharacterData, weaponTypeKey: string, secondaryName?: string): EmbedBuilder {
-  const embed = baseEmbed(char, secondaryName);
+function buildSkillsEmbed(char: CharacterData, weaponTypeKey: string): EmbedBuilder {
+  const embed = baseEmbed(char);
   const grouped = groupSkillsByWeapon(char.skills);
   const skills = grouped.get(weaponTypeKey) ?? [];
 
@@ -358,10 +355,9 @@ function buildExpiredComponents(state: CharacterState): ActionRowBuilder<ButtonB
 
 function buildCurrentEmbed(state: CharacterState): EmbedBuilder {
   const char = getChar(state);
-  const secondaryName = state.lang === "fr" ? state.en.name : state.fr.name;
   return state.page === "overview"
-    ? buildOverviewEmbed(char, secondaryName)
-    : buildSkillsEmbed(char, state.activeWeapon, secondaryName);
+    ? buildOverviewEmbed(char)
+    : buildSkillsEmbed(char, state.activeWeapon);
 }
 
 // ── Command definition ──────────────────────────────────────────────

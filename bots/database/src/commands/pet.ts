@@ -108,14 +108,9 @@ function baseEmbed(state: PetState): EmbedBuilder {
   const pet = getPet(state);
   const color = RARITY_COLORS[pet.rarity] ?? 0xc9a84c;
 
-  // Primary name = current lang, secondary = the other lang
-  const primary = pet.name;
-  const secondary = state.lang === "fr" ? state.en.name : state.fr.name;
-  const title = primary !== secondary ? `${primary} [${secondary}]` : primary;
-
   return new EmbedBuilder()
     .setColor(color)
-    .setDescription(`${petTypeEmoji(pet.petTypeKey)} ${pet.petType} ${rarityEmoji(pet.rarity)}\n\n**${title}**`)
+    .setDescription(`${petTypeEmoji(pet.petTypeKey)} ${pet.petType} ${rarityEmoji(pet.rarity)}\n\n**${pet.name}**`)
     .setThumbnail(pet.imageUrl || null)
     .setFooter({ text: "7DS Origin · 7dsorigin.app" });
 }
