@@ -168,16 +168,20 @@ function buildOverviewEmbed(state: PetState): EmbedBuilder {
     });
   }
 
-  // ── Sources d'obtention détaillées ──
+  // ── Sources d'obtention détaillées (only if label available) ──
   if (pet.obtainSources.length > 0) {
-    const sourceLines = pet.obtainSources.slice(0, 5).map((src) => {
-      const label = src.label ?? src.type ?? JSON.stringify(src).slice(0, 80);
-      return `└ ${label}`;
-    });
-    embed.addFields({
-      name: L(state, "📍 Sources", "📍 Sources"),
-      value: sourceLines.join("\n").slice(0, 1024),
-    });
+    const sourceLines = pet.obtainSources
+      .slice(0, 5)
+      .map((src) => src.label ?? src.type ?? null)
+      .filter((l): l is string => l != null)
+      .map((l) => `└ ${l}`);
+
+    if (sourceLines.length > 0) {
+      embed.addFields({
+        name: L(state, "📍 Sources", "📍 Sources"),
+        value: sourceLines.join("\n").slice(0, 1024),
+      });
+    }
   }
 
   // ── Capture data (si applicable) ──
