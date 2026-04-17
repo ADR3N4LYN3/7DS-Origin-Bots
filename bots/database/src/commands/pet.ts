@@ -38,6 +38,14 @@ const AUTOLOOT_UNICODE: Record<string, string> = {
   COLLECTION: "🌿",
 };
 
+// Potion grade → application emoji name
+const POTION_GRADE_EMOJI_NAMES: Record<string, string> = {
+  grade2: "popobase",
+  grade3: "popobleue",
+  grade4: "popoepic",
+  grade5: "popoleg",
+};
+
 const RARITY_COLORS: Record<string, number> = {
   SSR: 0xffd700, SR: 0xc084fc, R: 0x60a5fa,
 };
@@ -182,8 +190,8 @@ function buildOverviewEmbed(state: PetState): EmbedBuilder {
 
     const best = pet.captureData.bestPotion;
     if (best) {
-      // Try gameId first (most specific), then grade, else fallback unicode
-      const potionIcon = getEmoji(best.gameId) ?? getEmoji(best.grade) ?? "🧪";
+      const gradeEmojiName = POTION_GRADE_EMOJI_NAMES[best.grade];
+      const potionIcon = getEmoji(best.gameId) ?? (gradeEmojiName && getEmoji(gradeEmojiName)) ?? "🧪";
       cap.push(`${potionIcon} ${L(state, "Meilleure potion", "Best potion")} : **${best.name}** → **${best.finalRate}%**`);
     }
 
