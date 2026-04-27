@@ -13,7 +13,29 @@ export interface Giveaway {
   prize3: string;
   endsAt: number; // ms timestamp
   ended: boolean;
+  participants: string[]; // user IDs
   winners: { tier: 1 | 2 | 3; userId: string }[]; // populated on end / reroll
+}
+
+export function addParticipant(messageId: string, userId: string): { added: boolean; total: number } {
+  const data = loadGiveaways();
+  const g = data.find((x) => x.messageId === messageId);
+  if (!g) return { added: false, total: 0 };
+  if (g.participants.includes(userId)) return { added: false, total: g.participants.length };
+  g.participants.push(userId);
+  saveGiveaways(data);
+  return { added: true, total: g.participants.length };
+}
+
+export function removeParticipant(messageId: string, userId: string): { removed: boolean; total: number } {
+  const data = loadGiveaways();
+  const g = data.find((x) => x.messageId === messageId);
+  if (!g) return { removed: false, total: 0 };
+  const idx = g.participants.indexOf(userId);
+  if (idx < 0) return { removed: false, total: g.participants.length };
+  g.participants.splice(idx, 1);
+  saveGiveaways(data);
+  return { removed: true, total: g.participants.length };
 }
 
 let cache: Giveaway[] | null = null;

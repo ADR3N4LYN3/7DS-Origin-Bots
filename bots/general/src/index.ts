@@ -15,6 +15,7 @@ import { buildRepostCommand, handleRepostCommand } from "./commands/repost.js";
 import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
 import { buildGiveawayCommand, handleGiveawayCommand } from "./commands/giveaway.js";
 import { restoreGiveaways } from "./giveaways/scheduler.js";
+import { handleGiveawayButton } from "./giveaways/handler.js";
 import { handleGuildMemberAdd } from "./events/welcome.js";
 import { handleGuildMemberRemove } from "./events/leave.js";
 import { handleGuildMemberUpdate } from "./events/memberUpdate.js";
@@ -118,8 +119,11 @@ client.on("voiceStateUpdate", (oldState, newState) => {
 
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isButton()) return;
-  if (!interaction.customId.startsWith("rr:")) return;
-  await handleRoleButtonClick(interaction);
+  if (interaction.customId.startsWith("rr:")) {
+    await handleRoleButtonClick(interaction);
+  } else if (interaction.customId.startsWith("gw:")) {
+    await handleGiveawayButton(interaction);
+  }
 });
 
 // ── Slash command handling ───────────────────────────────────────────

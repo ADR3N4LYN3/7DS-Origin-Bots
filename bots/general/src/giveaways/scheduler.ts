@@ -1,4 +1,11 @@
-import { type Client, type TextChannel, EmbedBuilder } from "discord.js";
+import {
+  type Client,
+  type TextChannel,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} from "discord.js";
 import {
   loadGiveaways,
   updateGiveaway,
@@ -6,30 +13,37 @@ import {
   type Giveaway,
 } from "./storage.js";
 
-export const GIVEAWAY_EMOJI = "🎉";
 const TIER_EMOJIS = ["🥇", "🥈", "🥉"] as const;
 // Max safe setTimeout delay (~24.8 days)
 const MAX_TIMEOUT = 2_147_483_647;
 
 const timers = new Map<string, NodeJS.Timeout>();
 
+export function buildJoinButtonRow(messageId: string, participantCount: number, disabled = false): ActionRowBuilder<ButtonBuilder> {
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`gw:${messageId}:join`)
+      .setLabel(`Participer (${participantCount})`)
+      .setEmoji("🎉")
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(disabled),
+  );
+}
+
 export function scheduleGiveaway(client: Client, g: Giveaway) {
   if (g.ended) return;
 
   const delay = g.endsAt - Date.now();
 
-  // Already past — end immediately
   if (delay <= 0) {
     void endGiveaway(client, g.messageId);
     return;
   }
 
-  // Schedule (chain if too far in the future)
   const timeout = Math.min(delay, MAX_TIMEOUT);
   const timer = setTimeout(() => {
     timers.delete(g.messageId);
     if (delay > MAX_TIMEOUT) {
-      // Re-schedule the rest
       const next = findGiveaway(g.messageId);
       if (next) scheduleGiveaway(client, next);
     } else {
@@ -56,34 +70,21 @@ export async function restoreGiveaways(client: Client) {
   console.log(`Restored ${all.filter((g) => !g.ended).length} active giveaways`);
 }
 
-async function pickWinners(
-  client: Client,
-  g: Giveaway,
+function pickWinners(
+  participants: string[],
   exclude: Set<string> = new Set(),
-): Promise<string[]> {
-  const channel = (await client.channels.fetch(g.channelId)) as TextChannel | null;
-  if (!channel) return [];
-
-  const message = await channel.messages.fetch(g.messageId).catch(() => null);
-  if (!message) return [];
-
-  const reaction = message.reactions.cache.get(GIVEAWAY_EMOJI);
-  if (!reaction) return [];
-
-  const users = await reaction.users.fetch();
-  const eligible = users
-    .filter((u) => !u.bot && !exclude.has(u.id))
-    .map((u) => u.id);
-
+  count = 3,
+): string[] {
+  const eligible = participants.filter((id) => !exclude.has(id));
   if (eligible.length === 0) return [];
 
-  // Shuffle Fisher-Yates
+  // Fisher-Yates shuffle
   for (let i = eligible.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
   }
 
-  return eligible.slice(0, 3);
+  return eligible.slice(0, count);
 }
 
 function buildEndedEmbed(g: Giveaway, winners: { tier: 1 | 2 | 3; userId: string }[]): EmbedBuilder {
@@ -109,7 +110,7 @@ export async function endGiveaway(client: Client, messageId: string) {
 
   cancelScheduledGiveaway(messageId);
 
-  const winnerIds = await pickWinners(client, g);
+  const winnerIds = pickWinners(g.participants);
   const winners: Giveaway["winners"] = winnerIds.map((userId, i) => ({
     tier: (i + 1) as 1 | 2 | 3,
     userId,
@@ -120,16 +121,18 @@ export async function endGiveaway(client: Client, messageId: string) {
   const channel = (await client.channels.fetch(g.channelId)) as TextChannel | null;
   if (!channel) return;
 
-  // Edit original message to mark ended
+  // Edit original message to mark ended + disable button
   const message = await channel.messages.fetch(messageId).catch(() => null);
   if (message) {
     const embed = EmbedBuilder.from(message.embeds[0])
       .setTitle("🎉 Giveaway terminé !")
       .setColor(0x808080);
-    await message.edit({ embeds: [embed] }).catch(() => {});
+    await message.edit({
+      embeds: [embed],
+      components: [buildJoinButtonRow(messageId, g.participants.length, true)],
+    }).catch(() => {});
   }
 
-  // Announce winners
   const announcement = buildEndedEmbed(g, winners);
   const mentions = winners.map((w) => `<@${w.userId}>`).join(" ");
   await channel.send({
@@ -148,11 +151,10 @@ export async function rerollGiveaway(
   if (!g) return { success: false, error: "Giveaway introuvable" };
   if (!g.ended) return { success: false, error: "Le giveaway n'est pas terminé" };
 
-  // If tier not specified, reroll tier 1 by default
   const targetTier = tier ?? 1;
   const exclude = new Set(g.winners.map((w) => w.userId));
 
-  const newWinners = await pickWinners(client, g, exclude);
+  const newWinners = pickWinners(g.participants, exclude, 1);
   if (newWinners.length === 0) {
     return { success: false, error: "Aucun participant éligible pour le reroll" };
   }

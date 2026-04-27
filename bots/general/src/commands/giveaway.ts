@@ -16,7 +16,7 @@ import {
   scheduleGiveaway,
   endGiveaway,
   rerollGiveaway,
-  GIVEAWAY_EMOJI,
+  buildJoinButtonRow,
 } from "../giveaways/scheduler.js";
 
 // ── Duration parser ────────────────────────────────────────────────
@@ -52,7 +52,7 @@ function buildGiveawayEmbed(g: Giveaway): EmbedBuilder {
     `⏰ Termine <t:${endTs}:R>`,
     `👤 Hôte : <@${g.hostId}>`,
     "",
-    `Réagis avec ${GIVEAWAY_EMOJI} pour participer !`,
+    `Clique sur **Participer** pour t'inscrire !`,
   ].join("\n");
 
   return new EmbedBuilder()
@@ -165,7 +165,6 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
 
   const endsAt = Date.now() + durationMs;
 
-  // Send placeholder to get messageId
   const placeholder: Giveaway = {
     messageId: "pending",
     channelId: targetChannel.id,
@@ -174,12 +173,14 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
     prize1, prize2, prize3,
     endsAt,
     ended: false,
+    participants: [],
     winners: [],
   };
 
   try {
+    // Send embed first to get the messageId, then update with the button (which needs the messageId in customId)
     const message = await targetChannel.send({ embeds: [buildGiveawayEmbed(placeholder)] });
-    await message.react(GIVEAWAY_EMOJI);
+    await message.edit({ components: [buildJoinButtonRow(message.id, 0)] });
 
     const giveaway: Giveaway = { ...placeholder, messageId: message.id };
     addGiveaway(giveaway);
