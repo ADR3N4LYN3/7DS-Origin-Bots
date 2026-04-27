@@ -1,10 +1,11 @@
-import { type ButtonInteraction, type TextChannel, EmbedBuilder } from "discord.js";
+import { type ButtonInteraction, type TextChannel } from "discord.js";
 import {
   findGiveaway,
   addParticipant,
   removeParticipant,
 } from "./storage.js";
 import { buildJoinButtonRow } from "./scheduler.js";
+import { buildGiveawayEmbed } from "./embed.js";
 
 export async function handleGiveawayButton(interaction: ButtonInteraction) {
   // customId format: gw:<messageId>:join
@@ -45,14 +46,18 @@ export async function handleGiveawayButton(interaction: ButtonInteraction) {
     });
   }
 
-  // Update the original message button label with new count
+  // Update embed + button with new count
   const channel = (await interaction.client.channels.fetch(g.channelId)) as TextChannel | null;
   if (!channel) return;
 
   const message = await channel.messages.fetch(messageId).catch(() => null);
   if (!message) return;
 
+  const updated = findGiveaway(messageId);
+  if (!updated) return;
+
   await message.edit({
+    embeds: [buildGiveawayEmbed(updated)],
     components: [buildJoinButtonRow(messageId, total)],
   }).catch(() => {});
 }

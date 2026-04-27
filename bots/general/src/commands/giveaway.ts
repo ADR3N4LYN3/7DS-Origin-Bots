@@ -18,6 +18,7 @@ import {
   rerollGiveaway,
   buildJoinButtonRow,
 } from "../giveaways/scheduler.js";
+import { buildGiveawayEmbed } from "../giveaways/embed.js";
 
 // ── Duration parser ────────────────────────────────────────────────
 
@@ -39,30 +40,6 @@ function parseDuration(input: string): number | null {
   if (ms < 30_000 || ms > 30 * 86_400_000) return null; // 30s min, 30d max
   return ms;
 }
-
-// ── Embed ───────────────────────────────────────────────────────────
-
-function buildGiveawayEmbed(g: Giveaway): EmbedBuilder {
-  const endTs = Math.floor(g.endsAt / 1000);
-  const desc = [
-    `🥇 **1er :** ${g.prize1}`,
-    `🥈 **2e :** ${g.prize2}`,
-    `🥉 **3e :** ${g.prize3}`,
-    "",
-    `⏰ Termine <t:${endTs}:R>`,
-    `👤 Hôte : <@${g.hostId}>`,
-    "",
-    `Clique sur **Participer** pour t'inscrire !`,
-  ].join("\n");
-
-  return new EmbedBuilder()
-    .setColor(0xc9a84c)
-    .setTitle("🎉 GIVEAWAY 🎉")
-    .setDescription(desc)
-    .setFooter({ text: "7DS Origin · Termine le" })
-    .setTimestamp(g.endsAt);
-}
-
 // ── Command builder ────────────────────────────────────────────────
 
 export function buildGiveawayCommand() {

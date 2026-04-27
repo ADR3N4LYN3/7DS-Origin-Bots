@@ -88,18 +88,33 @@ function pickWinners(
 }
 
 function buildEndedEmbed(g: Giveaway, winners: { tier: 1 | 2 | 3; userId: string }[]): EmbedBuilder {
+  const SEP = "━━━━━━━━━━━━━━━━━━━━━━━━";
   const prizes = [g.prize1, g.prize2, g.prize3];
+  const tierLabels = ["1ʳᵉ place", "2ᵉ place", "3ᵉ place"];
+
   const lines = [0, 1, 2].map((i) => {
     const w = winners.find((x) => x.tier === (i + 1));
     const winner = w ? `<@${w.userId}>` : "*Aucun gagnant*";
-    return `${TIER_EMOJIS[i]} **${prizes[i]}** — ${winner}`;
+    return `> ${TIER_EMOJIS[i]}  **${tierLabels[i]}** — ${prizes[i]}\n>     ↳ ${winner}`;
   });
 
+  const desc = [
+    SEP,
+    `### 🏆  Résultats du tirage`,
+    "",
+    ...lines,
+    "",
+    SEP,
+    "",
+    `🎟️  **Participants** \`${g.participants.length}\``,
+    `👤  **Hôte** <@${g.hostId}>`,
+  ].join("\n");
+
   return new EmbedBuilder()
-    .setColor(0xc9a84c)
-    .setTitle("🎉 Giveaway terminé !")
-    .setDescription(lines.join("\n"))
-    .addFields({ name: "Hôte", value: `<@${g.hostId}>` })
+    .setColor(0x2ecc71)
+    .setAuthor({ name: "GIVEAWAY TERMINÉ  ·  7DS Origin" })
+    .setTitle("🎊  Bravo aux gagnants !  🎊")
+    .setDescription(desc)
     .setFooter({ text: "7DS Origin" })
     .setTimestamp();
 }
