@@ -114,7 +114,15 @@ function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSki
 
 // ── Lang type ───────────────────────────────────────────────────────
 
-type Lang = "fr" | "en";
+type Lang = "fr" | "en" | "es" | "de" | "pt";
+
+const LANG_OPTIONS: { value: Lang; label: string; emoji: string }[] = [
+  { value: "fr", label: "Français",   emoji: "🇫🇷" },
+  { value: "en", label: "English",    emoji: "🇬🇧" },
+  { value: "es", label: "Español",    emoji: "🇪🇸" },
+  { value: "de", label: "Deutsch",    emoji: "🇩🇪" },
+  { value: "pt", label: "Português",  emoji: "🇵🇹" },
+];
 
 // ── Shared header ───────────────────────────────────────────────────
 
@@ -240,8 +248,7 @@ function buildSkillsEmbed(char: CharacterData, weaponTypeKey: string): EmbedBuil
 type Page = "overview" | "skills";
 
 interface CharacterState {
-  fr: CharacterData;
-  en: CharacterData;
+  data: Record<Lang, CharacterData>;
   lang: Lang;
   page: Page;
   activeWeapon: string; // weaponTypeKey
@@ -252,7 +259,7 @@ function getWeaponTypes(char: CharacterData): string[] {
 }
 
 function getChar(state: CharacterState): CharacterData {
-  return state.lang === "fr" ? state.fr : state.en;
+  return state.data[state.lang];
 }
 
 function buildButtonRow(state: CharacterState): ActionRowBuilder<ButtonBuilder> {
@@ -271,16 +278,27 @@ function buildButtonRow(state: CharacterState): ActionRowBuilder<ButtonBuilder> 
       .setStyle(state.page === "skills" ? ButtonStyle.Primary : ButtonStyle.Secondary)
       .setDisabled(state.page === "skills"),
     new ButtonBuilder()
-      .setCustomId(`char:${char.slug}:lang`)
-      .setLabel(state.lang === "fr" ? "EN" : "FR")
-      .setEmoji(state.lang === "fr" ? "🇬🇧" : "🇫🇷")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
       .setLabel("Fiche complète")
       .setURL(char.url)
       .setStyle(ButtonStyle.Link)
       .setEmoji("🔗"),
   );
+}
+
+function buildLangSelectRow(state: CharacterState): ActionRowBuilder<StringSelectMenuBuilder> {
+  const char = getChar(state);
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`char:${char.slug}:lang`)
+    .setPlaceholder("🌐 Langue / Language")
+    .addOptions(
+      LANG_OPTIONS.map((opt) => ({
+        label: opt.label,
+        value: opt.value,
+        emoji: opt.emoji,
+        default: opt.value === state.lang,
+      })),
+    );
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
 }
 
 function buildWeaponSelectRow(state: CharacterState): ActionRowBuilder<StringSelectMenuBuilder> {
@@ -321,6 +339,8 @@ function buildComponents(
     rows.push(buildWeaponSelectRow(state));
   }
 
+  rows.push(buildLangSelectRow(state));
+
   return rows;
 }
 
@@ -337,12 +357,6 @@ function buildExpiredComponents(state: CharacterState): ActionRowBuilder<ButtonB
       .setCustomId("char:expired:skills")
       .setLabel("Skills")
       .setEmoji("⚔️")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true),
-    new ButtonBuilder()
-      .setCustomId("char:expired:lang")
-      .setLabel(state.lang === "fr" ? "EN" : "FR")
-      .setEmoji(state.lang === "fr" ? "🇬🇧" : "🇫🇷")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(true),
     new ButtonBuilder()
@@ -410,16 +424,18 @@ export async function handleCharacterCommand(
   await interaction.deferReply();
 
   try {
-    const [charFr, charEn] = await Promise.all([
+    const [fr, en, es, de, pt] = await Promise.all([
       apiClient.getCharacter(slug, "fr"),
       apiClient.getCharacter(slug, "en"),
+      apiClient.getCharacter(slug, "es"),
+      apiClient.getCharacter(slug, "de"),
+      apiClient.getCharacter(slug, "pt"),
     ]);
 
-    const weaponTypes = getWeaponTypes(charFr);
+    const weaponTypes = getWeaponTypes(fr);
 
     const state: CharacterState = {
-      fr: charFr,
-      en: charEn,
+      data: { fr, en, es, de, pt },
       lang: "fr",
       page: "overview",
       activeWeapon: weaponTypes[0] ?? "",
@@ -447,13 +463,6 @@ export async function handleCharacterCommand(
           state.page = "overview";
         } else if (action === "skills") {
           state.page = "skills";
-        } else if (action === "lang") {
-          state.lang = state.lang === "fr" ? "en" : "fr";
-          const char = getChar(state);
-          const wt = getWeaponTypes(char);
-          if (!wt.includes(state.activeWeapon)) {
-            state.activeWeapon = wt[0] ?? "";
-          }
         }
 
         await i.update({
@@ -463,7 +472,18 @@ export async function handleCharacterCommand(
       }
 
       if (i.isStringSelectMenu()) {
-        state.activeWeapon = i.values[0];
+        const action = i.customId.split(":")[2];
+
+        if (action === "lang") {
+          state.lang = i.values[0] as Lang;
+          const wt = getWeaponTypes(getChar(state));
+          if (!wt.includes(state.activeWeapon)) {
+            state.activeWeapon = wt[0] ?? "";
+          }
+        } else if (action === "weapon") {
+          state.activeWeapon = i.values[0];
+        }
+
         await i.update({
           embeds: [buildCurrentEmbed(state)],
           components: buildComponents(state),

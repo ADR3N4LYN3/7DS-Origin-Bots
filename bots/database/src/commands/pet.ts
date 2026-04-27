@@ -6,6 +6,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
 import type { PetData } from "../api/types.js";
@@ -104,21 +105,29 @@ function autolootEmoji(key: string | null): string {
 
 // ── Lang ────────────────────────────────────────────────────────────
 
-type Lang = "fr" | "en";
+type Lang = "fr" | "en" | "es" | "de" | "pt";
 type Page = "overview" | "skills";
 
+const LANG_OPTIONS: { value: Lang; label: string; emoji: string }[] = [
+  { value: "fr", label: "Français",   emoji: "🇫🇷" },
+  { value: "en", label: "English",    emoji: "🇬🇧" },
+  { value: "es", label: "Español",    emoji: "🇪🇸" },
+  { value: "de", label: "Deutsch",    emoji: "🇩🇪" },
+  { value: "pt", label: "Português",  emoji: "🇵🇹" },
+];
+
 interface PetState {
-  fr: PetData;
-  en: PetData;
+  data: Record<Lang, PetData>;
   lang: Lang;
   page: Page;
 }
 
 function getPet(state: PetState): PetData {
-  return state.lang === "fr" ? state.fr : state.en;
+  return state.data[state.lang];
 }
 
 function L(state: PetState, fr: string, en: string): string {
+  // FR for "fr", EN for everything else (ES/DE/PT fallback to EN UI)
   return state.lang === "fr" ? fr : en;
 }
 
@@ -301,16 +310,33 @@ function buildButtonRow(state: PetState): ActionRowBuilder<ButtonBuilder> {
       .setStyle(state.page === "skills" ? ButtonStyle.Primary : ButtonStyle.Secondary)
       .setDisabled(state.page === "skills"),
     new ButtonBuilder()
-      .setCustomId(`pet:${pet.slug}:lang`)
-      .setLabel(state.lang === "fr" ? "EN" : "FR")
-      .setEmoji(state.lang === "fr" ? "🇬🇧" : "🇫🇷")
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
       .setLabel(L(state, "Fiche complète", "Full page"))
       .setURL(pet.url)
       .setStyle(ButtonStyle.Link)
       .setEmoji("🔗"),
   );
+}
+
+function buildLangSelectRow(state: PetState): ActionRowBuilder<StringSelectMenuBuilder> {
+  const pet = getPet(state);
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`pet:${pet.slug}:lang`)
+    .setPlaceholder("🌐 Langue / Language")
+    .addOptions(
+      LANG_OPTIONS.map((opt) => ({
+        label: opt.label,
+        value: opt.value,
+        emoji: opt.emoji,
+        default: opt.value === state.lang,
+      })),
+    );
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+}
+
+function buildComponents(
+  state: PetState,
+): (ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>)[] {
+  return [buildButtonRow(state), buildLangSelectRow(state)];
 }
 
 function buildExpiredComponents(state: PetState): ActionRowBuilder<ButtonBuilder> {
@@ -326,12 +352,6 @@ function buildExpiredComponents(state: PetState): ActionRowBuilder<ButtonBuilder
       .setCustomId("pet:expired:skills")
       .setLabel(L(state, "Compétences", "Skills"))
       .setEmoji("⚡")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true),
-    new ButtonBuilder()
-      .setCustomId("pet:expired:lang")
-      .setLabel(state.lang === "fr" ? "EN" : "FR")
-      .setEmoji(state.lang === "fr" ? "🇬🇧" : "🇫🇷")
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(true),
     new ButtonBuilder()
@@ -398,21 +418,23 @@ export async function handlePetCommand(
   await interaction.deferReply();
 
   try {
-    const [petFr, petEn] = await Promise.all([
+    const [fr, en, es, de, pt] = await Promise.all([
       apiClient.getPet(slug, "fr"),
       apiClient.getPet(slug, "en"),
+      apiClient.getPet(slug, "es"),
+      apiClient.getPet(slug, "de"),
+      apiClient.getPet(slug, "pt"),
     ]);
 
     const state: PetState = {
-      fr: petFr,
-      en: petEn,
+      data: { fr, en, es, de, pt },
       lang: "fr",
       page: "overview",
     };
 
     const reply = await interaction.editReply({
       embeds: [buildCurrentEmbed(state)],
-      components: [buildButtonRow(state)],
+      components: buildComponents(state),
     });
 
     const collector = reply.createMessageComponentCollector({
@@ -425,16 +447,20 @@ export async function handlePetCommand(
         return;
       }
 
-      if (!i.isButton()) return;
-      const action = i.customId.split(":")[2];
-
-      if (action === "overview") state.page = "overview";
-      else if (action === "skills") state.page = "skills";
-      else if (action === "lang") state.lang = state.lang === "fr" ? "en" : "fr";
+      if (i.isButton()) {
+        const action = i.customId.split(":")[2];
+        if (action === "overview") state.page = "overview";
+        else if (action === "skills") state.page = "skills";
+      } else if (i.isStringSelectMenu()) {
+        const action = i.customId.split(":")[2];
+        if (action === "lang") state.lang = i.values[0] as Lang;
+      } else {
+        return;
+      }
 
       await i.update({
         embeds: [buildCurrentEmbed(state)],
-        components: [buildButtonRow(state)],
+        components: buildComponents(state),
       });
     });
 
