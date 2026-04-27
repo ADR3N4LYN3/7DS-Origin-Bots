@@ -13,6 +13,8 @@ import { buildSondageCommand, handleSondageCommand } from "./commands/sondage.js
 import { buildReactionRoleCommand, handleReactionRoleCommand, handleRoleButtonClick } from "./commands/reactionrole.js";
 import { buildRepostCommand, handleRepostCommand } from "./commands/repost.js";
 import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
+import { buildGiveawayCommand, handleGiveawayCommand } from "./commands/giveaway.js";
+import { restoreGiveaways } from "./giveaways/scheduler.js";
 import { handleGuildMemberAdd } from "./events/welcome.js";
 import { handleGuildMemberRemove } from "./events/leave.js";
 import { handleGuildMemberUpdate } from "./events/memberUpdate.js";
@@ -66,6 +68,7 @@ client.once("clientReady", (c) => {
     status: "online",
   });
   initLogChannel(c, CHANNEL_LOGS);
+  void restoreGiveaways(c);
 });
 
 // ── Welcome event ───────────────────────────────────────────────────
@@ -127,6 +130,7 @@ const COMMAND_HANDLERS: Record<string, (interaction: ChatInputCommandInteraction
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
   repost: (i) => handleRepostCommand(i, DISCORD_ADMIN_ROLE_ID),
   testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, welcomeConfig),
+  giveaway: (i) => handleGiveawayCommand(i, DISCORD_ADMIN_ROLE_ID, client),
 };
 
 client.on("interactionCreate", async (interaction: Interaction) => {
@@ -147,6 +151,7 @@ async function registerCommands() {
     buildReactionRoleCommand(),
     buildRepostCommand(),
     buildTestWelcomeCommand(),
+    buildGiveawayCommand(),
   ].map((c) => c.toJSON());
 
   await rest.put(Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID), {
