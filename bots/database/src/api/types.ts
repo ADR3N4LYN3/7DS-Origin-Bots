@@ -67,7 +67,6 @@ export interface CharacterData {
   slug: string;
   name: string;
   nameEn: string;
-  description: string | null;
   rarity: string;
   element: string;
   elementKey: string;
