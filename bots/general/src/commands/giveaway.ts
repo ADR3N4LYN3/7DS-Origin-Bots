@@ -58,6 +58,12 @@ export function buildGiveawayCommand() {
         )
         .addChannelOption((o) =>
           o.setName("channel").setDescription("Channel cible (par défaut : actuel)").setRequired(false),
+        )
+        .addStringOption((o) =>
+          o.setName("image").setDescription("URL d'une image bannière (grande image en bas)").setRequired(false),
+        )
+        .addStringOption((o) =>
+          o.setName("thumbnail").setDescription("URL d'une miniature (petite image en haut à droite)").setRequired(false),
         ),
     )
     .addSubcommand((sub) =>
@@ -141,6 +147,8 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
   }
 
   const endsAt = Date.now() + durationMs;
+  const imageUrl = interaction.options.getString("image");
+  const thumbnailUrl = interaction.options.getString("thumbnail");
 
   const placeholder: Giveaway = {
     messageId: "pending",
@@ -152,6 +160,8 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
     ended: false,
     participants: [],
     winners: [],
+    imageUrl: imageUrl ?? null,
+    thumbnailUrl: thumbnailUrl ?? null,
   };
 
   try {

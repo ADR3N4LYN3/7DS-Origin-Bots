@@ -23,10 +23,15 @@ export function buildGiveawayEmbed(g: Giveaway): EmbedBuilder {
     `*Clique sur* **🎉 Participer** *pour rejoindre le giveaway*`,
   ].join("\n");
 
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(0xffd700)
     .setAuthor({ name: "GIVEAWAY  ·  7DS Origin" })
     .setTitle("🎉  Tente ta chance !  🎉")
     .setDescription(desc)
     .setFooter({ text: `ID: ${g.messageId === "pending" ? "—" : g.messageId}` });
+
+  if (g.thumbnailUrl) embed.setThumbnail(g.thumbnailUrl);
+  if (g.imageUrl) embed.setImage(g.imageUrl);
+
+  return embed;
 }

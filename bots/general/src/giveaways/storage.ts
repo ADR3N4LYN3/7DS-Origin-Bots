@@ -15,6 +15,8 @@ export interface Giveaway {
   ended: boolean;
   participants: string[]; // user IDs
   winners: { tier: 1 | 2 | 3; userId: string }[]; // populated on end / reroll
+  imageUrl?: string | null; // optional banner image
+  thumbnailUrl?: string | null; // optional small thumbnail
 }
 
 export function addParticipant(messageId: string, userId: string): { added: boolean; total: number } {
