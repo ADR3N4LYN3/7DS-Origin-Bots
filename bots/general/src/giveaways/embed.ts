@@ -3,6 +3,9 @@ import type { Giveaway } from "./storage.js";
 
 const SEP = "━━━━━━━━━━━━━━━━━━━━━━━━";
 
+const DEFAULT_TITLE = "🎉  Tente ta chance !  🎉";
+const DEFAULT_CTA = "*Clique sur* **🎉 Participer** *pour rejoindre le giveaway*";
+
 export function buildGiveawayEmbed(g: Giveaway): EmbedBuilder {
   const endTs = Math.floor(g.endsAt / 1000);
 
@@ -20,13 +23,13 @@ export function buildGiveawayEmbed(g: Giveaway): EmbedBuilder {
     `👤  **Hôte** <@${g.hostId}>`,
     `🎟️  **Participants** \`${g.participants.length}\``,
     "",
-    `*Clique sur* **🎉 Participer** *pour rejoindre le giveaway*`,
+    g.cta || DEFAULT_CTA,
   ].join("\n");
 
   const embed = new EmbedBuilder()
     .setColor(0xffd700)
     .setAuthor({ name: "GIVEAWAY  ·  7DS Origin" })
-    .setTitle("🎉  Tente ta chance !  🎉")
+    .setTitle(g.title || DEFAULT_TITLE)
     .setDescription(desc)
     .setFooter({ text: `ID: ${g.messageId === "pending" ? "—" : g.messageId}` });
 

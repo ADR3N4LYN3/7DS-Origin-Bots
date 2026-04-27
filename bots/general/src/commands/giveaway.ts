@@ -64,6 +64,12 @@ export function buildGiveawayCommand() {
         )
         .addStringOption((o) =>
           o.setName("thumbnail").setDescription("URL d'une miniature (petite image en haut à droite)").setRequired(false),
+        )
+        .addStringOption((o) =>
+          o.setName("title").setDescription("Titre personnalisé (par défaut : 🎉 Tente ta chance ! 🎉)").setRequired(false),
+        )
+        .addStringOption((o) =>
+          o.setName("cta").setDescription("Texte d'appel à l'action en bas de l'embed").setRequired(false),
         ),
     )
     .addSubcommand((sub) =>
@@ -149,6 +155,8 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
   const endsAt = Date.now() + durationMs;
   const imageUrl = interaction.options.getString("image");
   const thumbnailUrl = interaction.options.getString("thumbnail");
+  const title = interaction.options.getString("title");
+  const cta = interaction.options.getString("cta");
 
   const placeholder: Giveaway = {
     messageId: "pending",
@@ -162,6 +170,8 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
     winners: [],
     imageUrl: imageUrl ?? null,
     thumbnailUrl: thumbnailUrl ?? null,
+    title: title ?? null,
+    cta: cta ?? null,
   };
 
   try {
