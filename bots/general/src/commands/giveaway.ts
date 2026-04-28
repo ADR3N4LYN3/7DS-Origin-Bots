@@ -101,6 +101,14 @@ export function buildGiveawayCommand() {
     )
     .addSubcommand((sub) =>
       sub.setName("list").setDescription("Lister les giveaways en cours"),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("participants")
+        .setDescription("Voir la liste des participants d'un giveaway")
+        .addStringOption((o) =>
+          o.setName("message_id").setDescription("ID du message du giveaway").setRequired(true),
+        ),
     );
 }
 
@@ -122,6 +130,8 @@ export async function handleGiveawayCommand(
     await handleStart(interaction);
   } else if (sub === "end") {
     await handleEnd(interaction, client);
+  } else if (sub === "participants") {
+    await handleParticipants(interaction);
   } else if (sub === "reroll") {
     await handleReroll(interaction, client);
   } else if (sub === "list") {
@@ -263,6 +273,38 @@ async function handleList(interaction: ChatInputCommandInteraction) {
     .setTitle(`🎉 Giveaways en cours (${active.length})`)
     .setDescription(lines.join("\n\n"))
     .setFooter({ text: "7DS Origin" });
+
+  await interaction.reply({ embeds: [embed], flags: 64 });
+}
+
+// ── Subcommand: participants ───────────────────────────────────────
+
+async function handleParticipants(interaction: ChatInputCommandInteraction) {
+  const messageId = interaction.options.getString("message_id", true);
+  const g = findGiveaway(messageId);
+
+  if (!g) {
+    await interaction.reply({ content: "❌ Giveaway introuvable.", flags: 64 });
+    return;
+  }
+
+  if (g.participants.length === 0) {
+    await interaction.reply({ content: "Aucun participant pour le moment.", flags: 64 });
+    return;
+  }
+
+  // Discord 4096 char description limit, mentions ~ 23 chars each
+  const mentions = g.participants.map((id) => `<@${id}>`);
+  const chunkSize = 100;
+  const description = mentions.length <= chunkSize
+    ? mentions.join(", ")
+    : mentions.slice(0, chunkSize).join(", ") + `\n\n*…et ${mentions.length - chunkSize} autres*`;
+
+  const embed = new EmbedBuilder()
+    .setColor(0xc9a84c)
+    .setTitle(`🎟️ Participants (${g.participants.length})`)
+    .setDescription(description)
+    .setFooter({ text: `Giveaway ID: ${messageId}` });
 
   await interaction.reply({ embeds: [embed], flags: 64 });
 }
