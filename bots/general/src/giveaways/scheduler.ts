@@ -102,7 +102,7 @@ function buildEndedEmbed(g: Giveaway, winners: { tier: 1 | 2 | 3; userId: string
     .filter((i) => prizes[i])
     .map((i) => {
       const w = winners.find((x) => x.tier === (i + 1));
-      const winner = w ? `<@${w.userId}>` : "*Aucun gagnant*";
+      const winner = w ? `<@${w.userId}>` : "*— Pas assez de participants —*";
       return `> ${TIER_EMOJIS[i]}  **${tierLabels[i]}** — ${prizes[i]}\n>     ↳ ${winner}`;
     });
 
@@ -159,12 +159,28 @@ export async function endGiveaway(client: Client, messageId: string) {
   }
 
   const announcement = buildEndedEmbed(g, winners);
-  const mentions = winners.map((w) => `<@${w.userId}>`).join(" ");
   await channel.send({
-    content: winners.length > 0 ? `Félicitations ${mentions} !` : "Personne n'a participé 😢",
+    content: buildCongratsMessage(winners),
     embeds: [announcement],
     reply: { messageReference: messageId, failIfNotExists: false },
   });
+}
+
+function buildCongratsMessage(winners: { tier: 1 | 2 | 3; userId: string }[]): string {
+  if (winners.length === 0) return "Personne n'a participé 😢";
+
+  const mentions = winners.map((w) => `<@${w.userId}>`);
+
+  if (mentions.length === 1) {
+    return `🎉 Félicitations ${mentions[0]} !`;
+  }
+
+  if (mentions.length === 2) {
+    return `🎉 Félicitations ${mentions[0]} et ${mentions[1]} !`;
+  }
+
+  // 3 winners
+  return `🎉 Félicitations ${mentions[0]}, ${mentions[1]} et ${mentions[2]} !`;
 }
 
 export async function rerollGiveaway(
