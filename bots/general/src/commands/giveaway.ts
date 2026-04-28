@@ -49,13 +49,13 @@ export function buildGiveawayCommand() {
     .addSubcommand((sub) =>
       sub
         .setName("start")
-        .setDescription("Lancer un giveaway 3 lots")
+        .setDescription("Lancer un giveaway (1 à 3 lots)")
         .addStringOption((o) => o.setName("prize1").setDescription("1er lot 🥇").setRequired(true))
-        .addStringOption((o) => o.setName("prize2").setDescription("2e lot 🥈 (optionnel)").setRequired(false))
-        .addStringOption((o) => o.setName("prize3").setDescription("3e lot 🥉 (optionnel)").setRequired(false))
         .addStringOption((o) =>
           o.setName("duration").setDescription("Durée (ex: 30m, 2h, 1d, 7d)").setRequired(true),
         )
+        .addStringOption((o) => o.setName("prize2").setDescription("2e lot 🥈 (optionnel)").setRequired(false))
+        .addStringOption((o) => o.setName("prize3").setDescription("3e lot 🥉 (optionnel)").setRequired(false))
         .addChannelOption((o) =>
           o.setName("channel").setDescription("Channel cible (par défaut : actuel)").setRequired(false),
         )
