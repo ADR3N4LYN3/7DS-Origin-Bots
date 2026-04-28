@@ -92,11 +92,13 @@ function buildEndedEmbed(g: Giveaway, winners: { tier: 1 | 2 | 3; userId: string
   const prizes = [g.prize1, g.prize2, g.prize3];
   const tierLabels = ["1ʳᵉ place", "2ᵉ place", "3ᵉ place"];
 
-  const lines = [0, 1, 2].map((i) => {
-    const w = winners.find((x) => x.tier === (i + 1));
-    const winner = w ? `<@${w.userId}>` : "*Aucun gagnant*";
-    return `> ${TIER_EMOJIS[i]}  **${tierLabels[i]}** — ${prizes[i]}\n>     ↳ ${winner}`;
-  });
+  const lines = [0, 1, 2]
+    .filter((i) => prizes[i])
+    .map((i) => {
+      const w = winners.find((x) => x.tier === (i + 1));
+      const winner = w ? `<@${w.userId}>` : "*Aucun gagnant*";
+      return `> ${TIER_EMOJIS[i]}  **${tierLabels[i]}** — ${prizes[i]}\n>     ↳ ${winner}`;
+    });
 
   const desc = [
     SEP,
@@ -125,7 +127,9 @@ export async function endGiveaway(client: Client, messageId: string) {
 
   cancelScheduledGiveaway(messageId);
 
-  const winnerIds = pickWinners(g.participants);
+  // Number of winners = number of prizes filled
+  const tierCount = 1 + (g.prize2 ? 1 : 0) + (g.prize3 ? 1 : 0);
+  const winnerIds = pickWinners(g.participants, new Set(), tierCount);
   const winners: Giveaway["winners"] = winnerIds.map((userId, i) => ({
     tier: (i + 1) as 1 | 2 | 3,
     userId,
@@ -167,6 +171,11 @@ export async function rerollGiveaway(
   if (!g.ended) return { success: false, error: "Le giveaway n'est pas terminé" };
 
   const targetTier = tier ?? 1;
+  const prizes = [g.prize1, g.prize2, g.prize3];
+  if (!prizes[targetTier - 1]) {
+    return { success: false, error: `Le lot ${targetTier} n'existe pas pour ce giveaway` };
+  }
+
   const exclude = new Set(g.winners.map((w) => w.userId));
 
   const newWinners = pickWinners(g.participants, exclude, 1);

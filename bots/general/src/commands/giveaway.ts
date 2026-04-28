@@ -51,8 +51,8 @@ export function buildGiveawayCommand() {
         .setName("start")
         .setDescription("Lancer un giveaway 3 lots")
         .addStringOption((o) => o.setName("prize1").setDescription("1er lot 🥇").setRequired(true))
-        .addStringOption((o) => o.setName("prize2").setDescription("2e lot 🥈").setRequired(true))
-        .addStringOption((o) => o.setName("prize3").setDescription("3e lot 🥉").setRequired(true))
+        .addStringOption((o) => o.setName("prize2").setDescription("2e lot 🥈 (optionnel)").setRequired(false))
+        .addStringOption((o) => o.setName("prize3").setDescription("3e lot 🥉 (optionnel)").setRequired(false))
         .addStringOption((o) =>
           o.setName("duration").setDescription("Durée (ex: 30m, 2h, 1d, 7d)").setRequired(true),
         )
@@ -133,8 +133,8 @@ export async function handleGiveawayCommand(
 
 async function handleStart(interaction: ChatInputCommandInteraction) {
   const prize1 = interaction.options.getString("prize1", true);
-  const prize2 = interaction.options.getString("prize2", true);
-  const prize3 = interaction.options.getString("prize3", true);
+  const prize2 = interaction.options.getString("prize2");
+  const prize3 = interaction.options.getString("prize3");
   const durationStr = interaction.options.getString("duration", true);
   const targetChannel = (interaction.options.getChannel("channel") ?? interaction.channel) as TextChannel;
 
@@ -250,7 +250,12 @@ async function handleList(interaction: ChatInputCommandInteraction) {
 
   const lines = active.map((g) => {
     const ts = Math.floor(g.endsAt / 1000);
-    return `╸ <#${g.channelId}> — \`${g.messageId}\`\n  🥇 ${g.prize1} · 🥈 ${g.prize2} · 🥉 ${g.prize3}\n  ⏰ Termine <t:${ts}:R>`;
+    const prizeStr = [
+      `🥇 ${g.prize1}`,
+      g.prize2 ? `🥈 ${g.prize2}` : null,
+      g.prize3 ? `🥉 ${g.prize3}` : null,
+    ].filter(Boolean).join(" · ");
+    return `╸ <#${g.channelId}> — \`${g.messageId}\`\n  ${prizeStr}\n  ⏰ Termine <t:${ts}:R>`;
   });
 
   const embed = new EmbedBuilder()

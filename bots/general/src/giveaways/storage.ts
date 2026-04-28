@@ -9,8 +9,8 @@ export interface Giveaway {
   guildId: string;
   hostId: string;
   prize1: string;
-  prize2: string;
-  prize3: string;
+  prize2: string | null;
+  prize3: string | null;
   endsAt: number; // ms timestamp
   ended: boolean;
   participants: string[]; // user IDs

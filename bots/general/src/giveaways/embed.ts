@@ -9,13 +9,15 @@ const DEFAULT_CTA = "*Clique sur* **🎉 Participer** *pour rejoindre le giveawa
 export function buildGiveawayEmbed(g: Giveaway): EmbedBuilder {
   const endTs = Math.floor(g.endsAt / 1000);
 
+  const prizeLines: string[] = [`> 🥇  **1ʳᵉ place** — ${g.prize1}`];
+  if (g.prize2) prizeLines.push(`> 🥈  **2ᵉ place** — ${g.prize2}`);
+  if (g.prize3) prizeLines.push(`> 🥉  **3ᵉ place** — ${g.prize3}`);
+
   const desc = [
     SEP,
     `### 🎁  Lots à gagner`,
     "",
-    `> 🥇  **1ʳᵉ place** — ${g.prize1}`,
-    `> 🥈  **2ᵉ place** — ${g.prize2}`,
-    `> 🥉  **3ᵉ place** — ${g.prize3}`,
+    ...prizeLines,
     "",
     SEP,
     "",
