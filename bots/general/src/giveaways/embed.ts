@@ -3,35 +3,70 @@ import type { Giveaway } from "./storage.js";
 
 const SEP = "━━━━━━━━━━━━━━━━━━━━━━━━";
 
-const DEFAULT_TITLE = "🎉  Tente ta chance !  🎉";
-const DEFAULT_CTA = "*Clique sur* **🎉 Participer** *pour rejoindre le giveaway*";
+export type EmbedLang = "fr" | "en";
 
-export function buildGiveawayEmbed(g: Giveaway): EmbedBuilder {
+const I18N: Record<EmbedLang, {
+  defaultTitle: string;
+  defaultCta: string;
+  prizesHeader: string;
+  tier1: string;
+  tier2: string;
+  tier3: string;
+  draw: string;
+  host: string;
+  participants: string;
+}> = {
+  fr: {
+    defaultTitle: "🎉  Tente ta chance !  🎉",
+    defaultCta: "*Clique sur* **🎉 Participer** *pour rejoindre le giveaway*",
+    prizesHeader: "### 🎁  Lots à gagner",
+    tier1: "1ʳᵉ place",
+    tier2: "2ᵉ place",
+    tier3: "3ᵉ place",
+    draw: "Tirage",
+    host: "Hôte",
+    participants: "Participants",
+  },
+  en: {
+    defaultTitle: "🎉  Try your luck !  🎉",
+    defaultCta: "*Click* **🎉 Participate** *to join the giveaway*",
+    prizesHeader: "### 🎁  Prizes to win",
+    tier1: "1st place",
+    tier2: "2nd place",
+    tier3: "3rd place",
+    draw: "Draw",
+    host: "Host",
+    participants: "Participants",
+  },
+};
+
+export function buildGiveawayEmbed(g: Giveaway, lang: EmbedLang = "fr"): EmbedBuilder {
+  const t = I18N[lang];
   const endTs = Math.floor(g.endsAt / 1000);
 
-  const prizeLines: string[] = [`> 🥇  **1ʳᵉ place** — ${g.prize1}`];
-  if (g.prize2) prizeLines.push(`> 🥈  **2ᵉ place** — ${g.prize2}`);
-  if (g.prize3) prizeLines.push(`> 🥉  **3ᵉ place** — ${g.prize3}`);
+  const prizeLines: string[] = [`> 🥇  **${t.tier1}** — ${g.prize1}`];
+  if (g.prize2) prizeLines.push(`> 🥈  **${t.tier2}** — ${g.prize2}`);
+  if (g.prize3) prizeLines.push(`> 🥉  **${t.tier3}** — ${g.prize3}`);
 
   const desc = [
     SEP,
-    `### 🎁  Lots à gagner`,
+    t.prizesHeader,
     "",
     ...prizeLines,
     "",
     SEP,
     "",
-    `🕐  **Tirage** <t:${endTs}:R> · <t:${endTs}:f>`,
-    `👤  **Hôte** <@${g.hostId}>`,
-    `🎟️  **Participants** \`${g.participants.length}\``,
+    `🕐  **${t.draw}** <t:${endTs}:R> · <t:${endTs}:f>`,
+    `👤  **${t.host}** <@${g.hostId}>`,
+    `🎟️  **${t.participants}** \`${g.participants.length}\``,
     "",
-    g.cta || DEFAULT_CTA,
+    g.cta || t.defaultCta,
   ].join("\n");
 
   const embed = new EmbedBuilder()
     .setColor(0xffd700)
     .setAuthor({ name: "GIVEAWAY  ·  7DS Origin" })
-    .setTitle(g.title || DEFAULT_TITLE)
+    .setTitle(g.title || t.defaultTitle)
     .setDescription(desc)
     .setFooter({ text: `ID: ${g.messageId === "pending" ? "—" : g.messageId}` });
 

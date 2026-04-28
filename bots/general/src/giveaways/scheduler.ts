@@ -27,6 +27,12 @@ export function buildJoinButtonRow(messageId: string, participantCount: number, 
       .setEmoji("🎉")
       .setStyle(ButtonStyle.Primary)
       .setDisabled(disabled),
+    new ButtonBuilder()
+      .setCustomId(`gw:${messageId}:lang`)
+      .setLabel("EN / FR")
+      .setEmoji("🌐")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(disabled),
   );
 }
 
