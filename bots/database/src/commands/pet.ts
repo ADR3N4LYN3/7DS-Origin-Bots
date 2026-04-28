@@ -255,7 +255,7 @@ function buildSkillsEmbed(state: PetState): EmbedBuilder {
         : "";
 
       const buffs = sk.buffs.length > 0
-        ? sk.buffs.map((b) => `├ 🟢 ${state.lang === "fr" ? b.nameFr : (b.nameEn || b.nameFr)}`).join("\n") + "\n"
+        ? sk.buffs.map((b) => `├ 🟢 ${b.name}`).join("\n") + "\n"
         : "";
 
       embed.addFields({
@@ -273,7 +273,7 @@ function buildSkillsEmbed(state: PetState): EmbedBuilder {
       : "";
 
     const buffs = p.buffs.length > 0
-      ? p.buffs.map((b) => `├ 🟢 ${state.lang === "fr" ? b.nameFr : (b.nameEn || b.nameFr)}`).join("\n")
+      ? p.buffs.map((b) => `├ 🟢 ${b.name}`).join("\n")
       : "";
 
     embed.addFields({

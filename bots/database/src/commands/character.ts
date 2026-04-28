@@ -225,7 +225,7 @@ function buildSkillsEmbed(char: CharacterData, weaponTypeKey: string): EmbedBuil
         : "";
 
       const buffs = sk.buffs?.length
-        ? sk.buffs.map((b) => `├ 🟢 ${b.nameFr}`).join("\n") + "\n"
+        ? sk.buffs.map((b) => `├ 🟢 ${b.name}`).join("\n") + "\n"
         : "";
 
       embed.addFields({

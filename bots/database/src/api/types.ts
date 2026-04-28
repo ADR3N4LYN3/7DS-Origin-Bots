@@ -13,10 +13,12 @@ export interface CharacterSearchResult {
 export interface CharacterBuff {
   buffId: string;
   buffType: string;
-  nameFr: string;
-  nameEn: string;
-  descriptionFr: string;
-  descriptionEn: string;
+  name: string;          // Localized per ?lang= (PT→EN→FR fallback chain)
+  nameEn: string;        // Stable EN (for emoji keys / mapping logic)
+  description?: string;  // Localized
+  descriptionEn?: string;
+  iconId?: string;
+  duration?: number;
 }
 
 export interface CharacterSkill {
@@ -152,10 +154,12 @@ export interface PetCaptureData {
 export interface PetBuff {
   buffId: string;
   buffType: string;
-  nameFr: string;
-  nameEn: string;
-  descriptionFr?: string;
+  name: string;          // Localized per ?lang= (PT→EN→FR fallback chain)
+  nameEn: string;        // Stable EN (for emoji keys / mapping logic)
+  description?: string;
   descriptionEn?: string;
+  iconId?: string;
+  duration?: number;
 }
 
 export interface PetSkill {
