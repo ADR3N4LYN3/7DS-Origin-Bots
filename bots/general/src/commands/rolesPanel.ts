@@ -4,7 +4,15 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
+  ContainerBuilder,
+  SectionBuilder,
+  ThumbnailBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+  MessageFlags,
   type TextChannel,
 } from "discord.js";
 import { hasAdminRole } from "../utils.js";
@@ -14,7 +22,7 @@ import {
   type RolePanelCategory,
 } from "../config/roles.config.js";
 
-// ── Emoji parsing (unicode or custom <:name:id>) ────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────
 
 function parseEmoji(raw: string): { name: string; id?: string; animated?: boolean } | string {
   const match = raw.match(/^<(a)?:(\w+):(\d+)>$/);
@@ -22,62 +30,32 @@ function parseEmoji(raw: string): { name: string; id?: string; animated?: boolea
   return raw;
 }
 
-// ── Build embed fields from config (one inline column per category) ──
-
 function categoryTitle(cat: RolePanelCategory): string {
   // Évite "NOTIFICATIONS / NOTIFICATIONS" quand FR == EN.
   const title = cat.titleFr === cat.titleEn ? cat.titleFr : `${cat.titleFr} / ${cat.titleEn}`;
-  return `${cat.emoji}  ${title}`;
+  return `${cat.emoji} ${title}`;
 }
 
-function buildFields(categories: RolePanelCategory[]) {
-  // Catégories avec ≤ 3 rôles (noms courts) -> côte à côte ; les autres en
-  // pleine largeur pour éviter que les libellés longs se coupent.
-  const columns = categories.map((cat) => ({
-    name: categoryTitle(cat),
-    value: cat.items.map((it) => `${it.emoji} **${it.label}**`).join("\n"),
-    inline: cat.items.length <= 3,
-  }));
-
-  return [
-    ...columns,
-    {
-      name: "​",
-      value:
-        "🇫🇷 Clique sur un bouton ci-dessous pour **obtenir** le rôle — reclique pour le **retirer**.\n" +
-        "🇬🇧 Click a button below to **get** the role — click again to **remove** it.",
-      inline: false,
-    },
-  ];
-}
-
-// ── Build buttons grouped by category (one row per category) ────────
-// Discord: max 5 buttons/row, max 5 rows. A category with >5 items spills
-// onto an extra row.
-
-function buildButtons(categories: RolePanelCategory[]): ActionRowBuilder<ButtonBuilder>[] {
+// Boutons d'une catégorie, répartis sur des rangées de 5 max.
+function buildCategoryRows(cat: RolePanelCategory): ActionRowBuilder<ButtonBuilder>[] {
   const rows: ActionRowBuilder<ButtonBuilder>[] = [];
+  let row = new ActionRowBuilder<ButtonBuilder>();
 
-  for (const cat of categories) {
-    let row = new ActionRowBuilder<ButtonBuilder>();
-
-    for (const it of cat.items) {
-      if (row.components.length >= 5) {
-        rows.push(row);
-        row = new ActionRowBuilder<ButtonBuilder>();
-      }
-      row.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`rr:${it.roleId}`)
-          .setLabel(it.label)
-          .setStyle(ButtonStyle.Secondary)
-          .setEmoji(parseEmoji(it.emoji)),
-      );
+  for (const it of cat.items) {
+    if (row.components.length >= 5) {
+      rows.push(row);
+      row = new ActionRowBuilder<ButtonBuilder>();
     }
-
-    if (row.components.length > 0) rows.push(row);
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`rr:${it.roleId}`)
+        .setLabel(it.label)
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji(parseEmoji(it.emoji)),
+    );
   }
 
+  if (row.components.length > 0) rows.push(row);
   return rows;
 }
 
@@ -104,10 +82,11 @@ export async function handleRolesPanelCommand(
 
   const channel = (interaction.options.getChannel("channel") ?? interaction.channel) as TextChannel;
 
-  const rows = buildButtons(ROLE_PANEL_CATEGORIES);
-  if (rows.length > 5) {
+  // Garde-fou : Discord limite à 5 rangées de boutons par message.
+  const totalRows = ROLE_PANEL_CATEGORIES.reduce((n, c) => n + Math.ceil(c.items.length / 5), 0);
+  if (totalRows > 5) {
     await interaction.reply({
-      content: `❌ Trop de boutons : ${rows.length} lignes générées (max 5). Réduis le nombre de rôles dans la config.`,
+      content: `❌ Trop de boutons : ${totalRows} rangées générées (max 5). Réduis le nombre de rôles dans la config.`,
       flags: 64,
     });
     return;
@@ -116,22 +95,61 @@ export async function handleRolesPanelCommand(
   const iconUrl = interaction.guild?.iconURL({ size: 256 })
     ?? interaction.client.user?.displayAvatarURL({ size: 256 });
 
-  const embed = new EmbedBuilder()
-    .setColor(0xc9a84c)
-    .setDescription("Personnalise ton expérience sur le serveur.\n*Customize your server experience.*")
-    .addFields(buildFields(ROLE_PANEL_CATEGORIES))
-    .setFooter({ text: "7DS Origin" });
+  const container = new ContainerBuilder().setAccentColor(0xc9a84c);
 
-  if (iconUrl) embed.setThumbnail(iconUrl);
+  // En-tête : titre + intro, avec le logo du serveur en accessoire (haut droite).
+  const headerText = new TextDisplayBuilder().setContent(
+    `# 🎭 ${ROLE_PANEL_TITLE.fr} / ${ROLE_PANEL_TITLE.en}\n` +
+      "Personnalise ton expérience sur le serveur.\n*Customize your server experience.*",
+  );
 
-  if (bannerUrl) embed.setImage(bannerUrl);
+  if (iconUrl) {
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(headerText)
+        .setThumbnailAccessory(new ThumbnailBuilder().setURL(iconUrl)),
+    );
+  } else {
+    container.addTextDisplayComponents(headerText);
+  }
+
+  container.addSeparatorComponents(
+    new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large),
+  );
+
+  // Une section par catégorie : titre puis ses boutons.
+  ROLE_PANEL_CATEGORIES.forEach((cat, idx) => {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`### ${categoryTitle(cat)}`),
+    );
+    for (const row of buildCategoryRows(cat)) {
+      container.addActionRowComponents(row);
+    }
+    if (idx < ROLE_PANEL_CATEGORIES.length - 1) {
+      container.addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small),
+      );
+    }
+  });
+
+  container.addSeparatorComponents(
+    new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large),
+  );
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(
+      "🇫🇷 Clique sur un bouton pour **obtenir** le rôle — reclique pour le **retirer**.\n" +
+        "🇬🇧 Click a button to **get** the role — click again to **remove** it.",
+    ),
+  );
+
+  if (bannerUrl) {
+    container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(bannerUrl)),
+    );
+  }
 
   try {
-    await channel.send({
-      content: `# 🎭 ${ROLE_PANEL_TITLE.fr} / ${ROLE_PANEL_TITLE.en}`,
-      embeds: [embed],
-      components: rows,
-    });
+    await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
     await interaction.reply({ content: `✅ Panneau de rôles posté dans <#${channel.id}>.`, flags: 64 });
   } catch (err) {
     console.error("Failed to post roles panel:", err);
