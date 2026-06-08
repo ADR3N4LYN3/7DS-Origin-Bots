@@ -30,5 +30,13 @@ module.exports = {
       restart_delay: 5000,
       max_restarts: 10,
     },
+    {
+      name: "7ds-notifications",
+      cwd: "./bots/notifications",
+      script: "dist/index.js",
+      node_args: "--env-file=.env",
+      restart_delay: 5000,
+      max_restarts: 10,
+    },
   ],
 };
