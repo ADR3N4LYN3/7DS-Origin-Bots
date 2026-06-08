@@ -16,16 +16,22 @@ export async function handleGuildMemberAdd(member: GuildMember, config: WelcomeC
 
   const lines = [
     `Hey ${member}, bienvenue sur **${member.guild.name}** ! 🎉`,
+    `Hey ${member}, welcome to **${member.guild.name}**! 🎉`,
     "",
-    `Tu es notre **${count}ème** membre.`,
+    `🇫🇷 Tu es notre **${count}ème** membre.`,
+    `🇬🇧 You are our **${count}th** member.`,
   ];
 
   if (config.rulesChannelId) {
+    lines.push("");
     lines.push(`📜 Lis le règlement dans <#${config.rulesChannelId}>`);
+    lines.push(`📜 Read the rules in <#${config.rulesChannelId}>`);
   }
 
   if (config.rolesChannelId) {
+    lines.push("");
     lines.push(`🎭 Choisis tes rôles dans <#${config.rolesChannelId}>`);
+    lines.push(`🎭 Pick your roles in <#${config.rolesChannelId}>`);
   }
 
   const embed = new EmbedBuilder()
@@ -36,7 +42,7 @@ export async function handleGuildMemberAdd(member: GuildMember, config: WelcomeC
     })
     .setThumbnail(avatar)
     .setDescription(lines.join("\n"))
-    .setFooter({ text: `7DS Origin • Membre #${count}` })
+    .setFooter({ text: `7DS Origin • Membre / Member #${count}` })
     .setTimestamp();
 
   if (config.bannerUrl) {

@@ -74,10 +74,10 @@ export async function handleRoleButtonClick(interaction: ButtonInteraction) {
   try {
     if (member.roles.cache.has(roleId)) {
       await member.roles.remove(roleId);
-      await interaction.reply({ content: `❌ Rôle **${role.name}** retiré.`, flags: 64 });
+      await interaction.reply({ content: `❌ Rôle **${role.name}** retiré. / Role **${role.name}** removed.`, flags: 64 });
     } else {
       await member.roles.add(roleId);
-      await interaction.reply({ content: `✅ Rôle **${role.name}** ajouté !`, flags: 64 });
+      await interaction.reply({ content: `✅ Rôle **${role.name}** ajouté ! / Role **${role.name}** added!`, flags: 64 });
     }
     setTimeout(() => interaction.deleteReply().catch(() => {}), 3000);
   } catch (err) {
