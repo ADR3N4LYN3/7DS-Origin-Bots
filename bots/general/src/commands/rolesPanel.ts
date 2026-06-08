@@ -10,9 +10,12 @@ import {
 import { hasAdminRole } from "../utils.js";
 import {
   ROLE_PANEL_TITLE,
+  ROLE_PANEL_THUMBNAIL,
   ROLE_PANEL_CATEGORIES,
   type RolePanelCategory,
 } from "../config/roles.config.js";
+
+const DIVIDER = "━━━━━━━━━━━━━━━━━━━━━";
 
 // ── Emoji parsing (unicode or custom <:name:id>) ────────────────────
 
@@ -26,16 +29,18 @@ function parseEmoji(raw: string): { name: string; id?: string; animated?: boolea
 
 function buildDescription(categories: RolePanelCategory[]): string {
   const blocks = categories.map((cat) => {
-    const header = `${cat.emoji} **${cat.titleFr} / ${cat.titleEn}**`;
-    const lines = cat.items.map((it) => `${it.emoji} — ${it.label}`);
+    // Évite "NOTIFICATIONS / NOTIFICATIONS" quand FR == EN.
+    const title = cat.titleFr === cat.titleEn ? cat.titleFr : `${cat.titleFr} / ${cat.titleEn}`;
+    const header = `${cat.emoji} **${title}**`;
+    const lines = cat.items.map((it) => `${it.emoji} ⟶ **${it.label}**`);
     return [header, ...lines].join("\n");
   });
 
   return [
-    blocks.join("\n\n"),
-    "",
-    "🇫🇷 Clique sur un bouton pour obtenir le rôle, reclique pour le retirer.",
-    "🇬🇧 Click a button to get the role, click again to remove it.",
+    blocks.join(`\n${DIVIDER}\n`),
+    DIVIDER,
+    "🇫🇷 Clique sur un bouton pour **obtenir** le rôle, reclique pour le **retirer**.",
+    "🇬🇧 Click a button to **get** the role, click again to **remove** it.",
   ].join("\n");
 }
 
@@ -83,6 +88,7 @@ export function buildRolesPanelCommand() {
 export async function handleRolesPanelCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
+  bannerUrl?: string,
 ) {
   if (!hasAdminRole(interaction, adminRoleId)) {
     await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
@@ -102,8 +108,11 @@ export async function handleRolesPanelCommand(
 
   const embed = new EmbedBuilder()
     .setColor(0xc9a84c)
+    .setThumbnail(ROLE_PANEL_THUMBNAIL)
     .setDescription(buildDescription(ROLE_PANEL_CATEGORIES))
     .setFooter({ text: "7DS Origin" });
+
+  if (bannerUrl) embed.setImage(bannerUrl);
 
   try {
     await channel.send({

@@ -20,6 +20,9 @@ export const ROLE_PANEL_TITLE = {
   en: "Pick your roles",
 };
 
+// Icône affichée en haut à droite de l'embed (orbe runique officiel 7DS Origin).
+export const ROLE_PANEL_THUMBNAIL = "https://sgimage.netmarble.com/favicon/nanaori/favicon-180.png";
+
 export const ROLE_PANEL_CATEGORIES: RolePanelCategory[] = [
   {
     emoji: "🔔",

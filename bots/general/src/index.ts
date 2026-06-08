@@ -133,7 +133,7 @@ const COMMAND_HANDLERS: Record<string, (interaction: ChatInputCommandInteraction
   clear: (i) => handleClearCommand(i, DISCORD_ADMIN_ROLE_ID),
   sondage: (i) => handleSondageCommand(i, DISCORD_ADMIN_ROLE_ID),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
-  "roles-panel": (i) => handleRolesPanelCommand(i, DISCORD_ADMIN_ROLE_ID),
+  "roles-panel": (i) => handleRolesPanelCommand(i, DISCORD_ADMIN_ROLE_ID, WELCOME_BANNER_URL),
   repost: (i) => handleRepostCommand(i, DISCORD_ADMIN_ROLE_ID),
   testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, welcomeConfig),
   giveaway: (i) => handleGiveawayCommand(i, DISCORD_ADMIN_ROLE_ID, client),
