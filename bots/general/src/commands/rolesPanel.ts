@@ -31,10 +31,12 @@ function categoryTitle(cat: RolePanelCategory): string {
 }
 
 function buildFields(categories: RolePanelCategory[]) {
+  // Catégories avec ≤ 3 rôles (noms courts) -> côte à côte ; les autres en
+  // pleine largeur pour éviter que les libellés longs se coupent.
   const columns = categories.map((cat) => ({
     name: categoryTitle(cat),
     value: cat.items.map((it) => `${it.emoji} **${it.label}**`).join("\n"),
-    inline: true,
+    inline: cat.items.length <= 3,
   }));
 
   return [
