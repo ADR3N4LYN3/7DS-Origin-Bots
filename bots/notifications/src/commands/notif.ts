@@ -134,6 +134,7 @@ async function handleAdd(interaction: ChatInputCommandInteraction, config: Notif
 
   let sourceId: string;
   let sourceName: string;
+  let avatarUrl: string | null = null;
 
   if (platform === "youtube") {
     const resolved = await resolveYouTubeChannel(source).catch(() => null);
@@ -145,6 +146,7 @@ async function handleAdd(interaction: ChatInputCommandInteraction, config: Notif
     }
     sourceId = resolved.channelId;
     sourceName = resolved.name;
+    avatarUrl = resolved.avatar;
   } else {
     if (!config.twitchClientId || !config.twitchClientSecret) {
       await interaction.editReply(
@@ -163,6 +165,7 @@ async function handleAdd(interaction: ChatInputCommandInteraction, config: Notif
     }
     sourceId = user.login;
     sourceName = user.displayName;
+    avatarUrl = user.avatar;
   }
 
   // Avoid duplicate (same source posting in the same channel).
@@ -181,6 +184,7 @@ async function handleAdd(interaction: ChatInputCommandInteraction, config: Notif
     platform,
     sourceId,
     sourceName,
+    avatarUrl,
     discordChannelId: channel.id,
     roleId: role?.id ?? null,
     message: message ?? null,
@@ -286,8 +290,10 @@ async function handleTest(
     title: "Ceci est une notification de test",
     url,
     thumbnail: null,
+    avatar: sub.avatarUrl,
     game: sub.platform === "twitch" ? "Catégorie de test" : null,
     login: sub.sourceId,
+    viewers: sub.platform === "twitch" ? 123 : null,
   });
 
   await interaction.editReply(`✅ Notification de test envoyée dans <#${sub.discordChannelId}>.`);

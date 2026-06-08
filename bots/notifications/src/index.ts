@@ -113,6 +113,7 @@ async function checkYouTube(client: Client) {
           title: video.title,
           url: video.url,
           thumbnail: video.thumbnail,
+          avatar: sub.avatarUrl,
         });
       }
       setState(sub.id, { lastVideoId: latestId });
@@ -156,9 +157,12 @@ async function checkTwitch(client: Client) {
         name: stream.userName || sub.sourceName,
         title: stream.title || "Live en cours",
         url: `https://twitch.tv/${stream.userLogin}`,
-        thumbnail: stream.thumbnailUrl,
+        // Cache-bust per stream so Discord shows the current preview, not a stale one.
+        thumbnail: `${stream.thumbnailUrl}?cb=${encodeURIComponent(stream.startedAt)}`,
+        avatar: sub.avatarUrl,
         game: stream.gameName,
         login: stream.userLogin,
+        viewers: stream.viewerCount,
       });
       setState(sub.id, { isLive: true });
     } else if (!stream && state.isLive) {

@@ -52,12 +52,31 @@ export async function fetchLatestVideos(channelId: string): Promise<YouTubeVideo
 }
 
 /**
+ * Best-effort fetch of a channel's avatar from its public page. Keyless.
+ */
+async function fetchYouTubeAvatar(channelId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`https://www.youtube.com/channel/${channelId}`, {
+      headers: { "Accept-Language": "en" },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const m = html.match(/"avatar":\{"thumbnails":\[\{"url":"([^"]+)"/);
+    if (!m) return null;
+    // Unescape and bump the requested size for a crisper icon.
+    return m[1].replace(/\\\//g, "/").replace(/=s\d+-/, "=s240-");
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolve a user-provided value (channel id, channel URL, @handle or custom URL)
- * to a stable channel id + display name. No API key required.
+ * to a stable channel id + display name + avatar. No API key required.
  */
 export async function resolveYouTubeChannel(
   input: string,
-): Promise<{ channelId: string; name: string } | null> {
+): Promise<{ channelId: string; name: string; avatar: string | null } | null> {
   let channelId: string | null = null;
 
   const fromUrl = input.match(/channel\/(UC[\w-]{22})/);
@@ -93,5 +112,6 @@ export async function resolveYouTubeChannel(
   const xml = await res.text();
   const nameMatch = xml.match(/<title>([^<]*)<\/title>/);
   const name = nameMatch ? decodeXml(nameMatch[1]) : channelId;
-  return { channelId, name };
+  const avatar = await fetchYouTubeAvatar(channelId);
+  return { channelId, name, avatar };
 }

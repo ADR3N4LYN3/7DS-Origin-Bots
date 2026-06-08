@@ -8,6 +8,7 @@ export interface TwitchStream {
   gameName: string;
   thumbnailUrl: string;
   startedAt: string;
+  viewerCount: number;
 }
 
 export interface TwitchUser {
@@ -73,6 +74,7 @@ export async function fetchLiveStreams(
           .replace("{width}", "1280")
           .replace("{height}", "720"),
         startedAt: s.started_at,
+        viewerCount: s.viewer_count ?? 0,
       });
     }
   }

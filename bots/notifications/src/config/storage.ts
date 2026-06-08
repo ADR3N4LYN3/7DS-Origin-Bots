@@ -12,6 +12,7 @@ export interface Subscription {
   platform: Platform;
   sourceId: string; // youtube channel id (UC...) or twitch login (lowercase)
   sourceName: string; // display name shown to humans
+  avatarUrl: string | null; // channel/streamer avatar (author icon)
   discordChannelId: string; // where the notification is posted
   roleId: string | null; // role to ping (optional)
   message: string | null; // custom message template (optional)

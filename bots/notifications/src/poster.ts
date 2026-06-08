@@ -1,4 +1,11 @@
-import { type Client, type TextChannel, EmbedBuilder } from "discord.js";
+import {
+  type Client,
+  type TextChannel,
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} from "discord.js";
 import type { Platform, Subscription } from "./config/storage.js";
 
 export interface NotificationData {
@@ -7,8 +14,10 @@ export interface NotificationData {
   title: string;
   url: string;
   thumbnail?: string | null;
+  avatar?: string | null;
   game?: string | null;
   login?: string | null;
+  viewers?: number | null;
 }
 
 const DEFAULT_TEMPLATES: Record<Platform, string> = {
@@ -34,15 +43,33 @@ function buildEmbed(data: NotificationData): EmbedBuilder {
   const isYouTube = data.kind === "youtube";
   const embed = new EmbedBuilder()
     .setColor(isYouTube ? 0xff0000 : 0x9146ff)
-    .setAuthor({ name: isYouTube ? `${data.name} · YouTube` : `${data.name} · Twitch` })
+    .setAuthor({
+      name: isYouTube ? `${data.name} · YouTube` : `${data.name} · Twitch`,
+      iconURL: data.avatar ?? undefined,
+      url: data.url,
+    })
     .setTitle(data.title.slice(0, 256) || data.name)
     .setURL(data.url)
     .setFooter({ text: "7DS Origin" })
     .setTimestamp();
 
-  if (data.game) embed.addFields({ name: "Jeu", value: data.game, inline: true });
+  if (data.game) embed.addFields({ name: "Catégorie", value: data.game, inline: true });
+  if (typeof data.viewers === "number") {
+    embed.addFields({ name: "Spectateurs", value: `${data.viewers.toLocaleString("fr-FR")}`, inline: true });
+  }
   if (data.thumbnail) embed.setImage(data.thumbnail);
   return embed;
+}
+
+function buildButtonRow(data: NotificationData): ActionRowBuilder<ButtonBuilder> {
+  const isYouTube = data.kind === "youtube";
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setStyle(ButtonStyle.Link)
+      .setURL(data.url)
+      .setLabel(isYouTube ? "Regarder la vidéo" : "Regarder le live")
+      .setEmoji(isYouTube ? "▶️" : "🔴"),
+  );
 }
 
 export async function sendNotification(
@@ -64,6 +91,7 @@ export async function sendNotification(
   await channel.send({
     content: content || undefined,
     embeds: [buildEmbed(data)],
+    components: [buildButtonRow(data)],
     allowedMentions: { parse: [], roles: sub.roleId ? [sub.roleId] : [] },
   });
 }
