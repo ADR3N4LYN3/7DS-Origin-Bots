@@ -10,12 +10,9 @@ import {
 import { hasAdminRole } from "../utils.js";
 import {
   ROLE_PANEL_TITLE,
-  ROLE_PANEL_THUMBNAIL,
   ROLE_PANEL_CATEGORIES,
   type RolePanelCategory,
 } from "../config/roles.config.js";
-
-const DIVIDER = "━━━━━━━━━━━━━━━━━━━━━";
 
 // ── Emoji parsing (unicode or custom <:name:id>) ────────────────────
 
@@ -25,23 +22,31 @@ function parseEmoji(raw: string): { name: string; id?: string; animated?: boolea
   return raw;
 }
 
-// ── Build embed description from config (bilingual) ──────────────────
+// ── Build embed fields from config (one inline column per category) ──
 
-function buildDescription(categories: RolePanelCategory[]): string {
-  const blocks = categories.map((cat) => {
-    // Évite "NOTIFICATIONS / NOTIFICATIONS" quand FR == EN.
-    const title = cat.titleFr === cat.titleEn ? cat.titleFr : `${cat.titleFr} / ${cat.titleEn}`;
-    const header = `${cat.emoji} **${title}**`;
-    const lines = cat.items.map((it) => `${it.emoji} ⟶ **${it.label}**`);
-    return [header, ...lines].join("\n");
-  });
+function categoryTitle(cat: RolePanelCategory): string {
+  // Évite "NOTIFICATIONS / NOTIFICATIONS" quand FR == EN.
+  const title = cat.titleFr === cat.titleEn ? cat.titleFr : `${cat.titleFr} / ${cat.titleEn}`;
+  return `${cat.emoji}  ${title}`;
+}
+
+function buildFields(categories: RolePanelCategory[]) {
+  const columns = categories.map((cat) => ({
+    name: categoryTitle(cat),
+    value: cat.items.map((it) => `${it.emoji} **${it.label}**`).join("\n"),
+    inline: true,
+  }));
 
   return [
-    blocks.join(`\n${DIVIDER}\n`),
-    DIVIDER,
-    "🇫🇷 Clique sur un bouton pour **obtenir** le rôle, reclique pour le **retirer**.",
-    "🇬🇧 Click a button to **get** the role, click again to **remove** it.",
-  ].join("\n");
+    ...columns,
+    {
+      name: "​",
+      value:
+        "🇫🇷 Clique sur un bouton ci-dessous pour **obtenir** le rôle — reclique pour le **retirer**.\n" +
+        "🇬🇧 Click a button below to **get** the role — click again to **remove** it.",
+      inline: false,
+    },
+  ];
 }
 
 // ── Build buttons grouped by category (one row per category) ────────
@@ -108,8 +113,8 @@ export async function handleRolesPanelCommand(
 
   const embed = new EmbedBuilder()
     .setColor(0xc9a84c)
-    .setThumbnail(ROLE_PANEL_THUMBNAIL)
-    .setDescription(buildDescription(ROLE_PANEL_CATEGORIES))
+    .setDescription("Personnalise ton expérience sur le serveur.\n*Customize your server experience.*")
+    .addFields(buildFields(ROLE_PANEL_CATEGORIES))
     .setFooter({ text: "7DS Origin" });
 
   if (bannerUrl) embed.setImage(bannerUrl);
