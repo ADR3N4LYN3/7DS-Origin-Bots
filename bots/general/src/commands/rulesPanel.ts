@@ -101,7 +101,8 @@ export async function handleRulesPanelCommand(
   }
 
   try {
-    await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    const sent = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    await sent.react("✅").catch(() => {}); // réaction symbolique de validation
     await interaction.reply({ content: `✅ Règlement posté dans <#${channel.id}>.`, flags: 64 });
   } catch (err) {
     console.error("Failed to post rules panel:", err);
