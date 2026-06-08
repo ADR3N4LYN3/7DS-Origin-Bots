@@ -279,6 +279,51 @@ async function handleTest(
 
   await interaction.deferReply({ flags: 64 });
 
+  // Try to send a notification with REAL live data, exactly as the automatic one would.
+  if (sub.platform === "twitch") {
+    const live = await fetchLiveStreams(
+      [sub.sourceId],
+      config.twitchClientId,
+      config.twitchClientSecret,
+    ).catch(() => new Map());
+    const stream = live.get(sub.sourceId.toLowerCase());
+    if (stream) {
+      await sendNotification(client, sub, {
+        kind: "twitch",
+        name: stream.userName || sub.sourceName,
+        title: stream.title || "Live en cours",
+        url: `https://twitch.tv/${stream.userLogin}`,
+        thumbnail: `${stream.thumbnailUrl}?cb=${encodeURIComponent(stream.startedAt)}`,
+        avatar: sub.avatarUrl,
+        game: stream.gameName,
+        login: stream.userLogin,
+        viewers: stream.viewerCount,
+      });
+      await interaction.editReply(
+        `✅ Notification **réelle** (live en cours) envoyée dans <#${sub.discordChannelId}>.`,
+      );
+      return;
+    }
+  } else {
+    const videos = await fetchLatestVideos(sub.sourceId).catch(() => []);
+    const video = videos[0];
+    if (video) {
+      await sendNotification(client, sub, {
+        kind: "youtube",
+        name: sub.sourceName,
+        title: video.title,
+        url: video.url,
+        thumbnail: video.thumbnail,
+        avatar: sub.avatarUrl,
+      });
+      await interaction.editReply(
+        `✅ Aperçu **réel** (dernière vidéo) envoyé dans <#${sub.discordChannelId}>.`,
+      );
+      return;
+    }
+  }
+
+  // Fallback: not live / no video yet → send a clearly-labelled dummy.
   const url =
     sub.platform === "youtube"
       ? `https://www.youtube.com/channel/${sub.sourceId}`
@@ -296,7 +341,11 @@ async function handleTest(
     viewers: sub.platform === "twitch" ? 123 : null,
   });
 
-  await interaction.editReply(`✅ Notification de test envoyée dans <#${sub.discordChannelId}>.`);
+  await interaction.editReply(
+    sub.platform === "twitch"
+      ? `⚠️ **${sub.sourceName}** n'est pas en live — exemple factice envoyé dans <#${sub.discordChannelId}>.`
+      : `⚠️ Aucune vidéo trouvée — exemple factice envoyé dans <#${sub.discordChannelId}>.`,
+  );
 }
 
 // ── Autocomplete for remove / test ───────────────────────────────────
