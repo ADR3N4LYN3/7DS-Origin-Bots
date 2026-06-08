@@ -12,6 +12,7 @@ import { buildClearCommand, handleClearCommand } from "./commands/clear.js";
 import { buildSondageCommand, handleSondageCommand } from "./commands/sondage.js";
 import { buildReactionRoleCommand, handleReactionRoleCommand, handleRoleButtonClick } from "./commands/reactionrole.js";
 import { buildRolesPanelCommand, handleRolesPanelCommand } from "./commands/rolesPanel.js";
+import { buildRulesPanelCommand, handleRulesPanelCommand } from "./commands/rulesPanel.js";
 import { buildRepostCommand, handleRepostCommand } from "./commands/repost.js";
 import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
 import { buildGiveawayCommand, handleGiveawayCommand } from "./commands/giveaway.js";
@@ -134,6 +135,7 @@ const COMMAND_HANDLERS: Record<string, (interaction: ChatInputCommandInteraction
   sondage: (i) => handleSondageCommand(i, DISCORD_ADMIN_ROLE_ID),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
   "roles-panel": (i) => handleRolesPanelCommand(i, DISCORD_ADMIN_ROLE_ID, WELCOME_BANNER_URL),
+  "rules-panel": (i) => handleRulesPanelCommand(i, DISCORD_ADMIN_ROLE_ID, WELCOME_BANNER_URL),
   repost: (i) => handleRepostCommand(i, DISCORD_ADMIN_ROLE_ID),
   testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, welcomeConfig),
   giveaway: (i) => handleGiveawayCommand(i, DISCORD_ADMIN_ROLE_ID, client),
@@ -156,6 +158,7 @@ async function registerCommands() {
     buildSondageCommand(),
     buildReactionRoleCommand(),
     buildRolesPanelCommand(),
+    buildRulesPanelCommand(),
     buildRepostCommand(),
     buildTestWelcomeCommand(),
     buildGiveawayCommand(),
