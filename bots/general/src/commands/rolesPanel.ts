@@ -111,11 +111,16 @@ export async function handleRolesPanelCommand(
     return;
   }
 
+  const iconUrl = interaction.guild?.iconURL({ size: 256 })
+    ?? interaction.client.user?.displayAvatarURL({ size: 256 });
+
   const embed = new EmbedBuilder()
     .setColor(0xc9a84c)
     .setDescription("Personnalise ton expérience sur le serveur.\n*Customize your server experience.*")
     .addFields(buildFields(ROLE_PANEL_CATEGORIES))
     .setFooter({ text: "7DS Origin" });
+
+  if (iconUrl) embed.setThumbnail(iconUrl);
 
   if (bannerUrl) embed.setImage(bannerUrl);
 
