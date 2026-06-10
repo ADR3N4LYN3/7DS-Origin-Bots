@@ -5,19 +5,19 @@ import {
   type TextChannel,
 } from "discord.js";
 import { hasAdminRole } from "../utils.js";
-import { ROLE_PANEL_TITLE, ROLE_PANEL_CATEGORIES } from "../config/roles.config.js";
+import { LANG_PANEL_TITLE, LANG_PANEL_CATEGORIES } from "../config/lang.config.js";
 import { buildRolePanelContainer, countButtonRows } from "../panels/rolePanel.js";
 
-export function buildRolesPanelCommand() {
+export function buildLangPanelCommand() {
   return new SlashCommandBuilder()
-    .setName("roles-panel")
-    .setDescription("Poster le panneau de rôles auto-attribuables depuis la config (admin)")
+    .setName("lang-panel")
+    .setDescription("Poster le panneau des rôles de langue depuis la config (admin)")
     .addChannelOption((opt) =>
       opt.setName("channel").setDescription("Channel cible (par défaut : actuel)").setRequired(false),
     );
 }
 
-export async function handleRolesPanelCommand(
+export async function handleLangPanelCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
   bannerUrl?: string,
@@ -29,9 +29,9 @@ export async function handleRolesPanelCommand(
 
   const channel = (interaction.options.getChannel("channel") ?? interaction.channel) as TextChannel;
 
-  if (countButtonRows(ROLE_PANEL_CATEGORIES) > 5) {
+  if (countButtonRows(LANG_PANEL_CATEGORIES) > 5) {
     await interaction.reply({
-      content: "❌ Trop de boutons (max 5 rangées). Réduis le nombre de rôles dans la config.",
+      content: "❌ Trop de boutons (max 5 rangées). Réduis le nombre de langues dans la config.",
       flags: 64,
     });
     return;
@@ -41,21 +41,21 @@ export async function handleRolesPanelCommand(
     ?? interaction.client.user?.displayAvatarURL({ size: 256 });
 
   const container = buildRolePanelContainer({
-    titleEmoji: "🎭",
-    titleFr: ROLE_PANEL_TITLE.fr,
-    titleEn: ROLE_PANEL_TITLE.en,
-    introFr: "Personnalise ton expérience sur le serveur.",
-    introEn: "Customize your server experience.",
-    categories: ROLE_PANEL_CATEGORIES,
+    titleEmoji: "🌍",
+    titleFr: LANG_PANEL_TITLE.fr,
+    titleEn: LANG_PANEL_TITLE.en,
+    introFr: "Sélectionne la ou les langues que tu parles.",
+    introEn: "Select the language(s) you speak.",
+    categories: LANG_PANEL_CATEGORIES,
     iconUrl,
     bannerUrl,
   });
 
   try {
     await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    await interaction.reply({ content: `✅ Panneau de rôles posté dans <#${channel.id}>.`, flags: 64 });
+    await interaction.reply({ content: `✅ Panneau des langues posté dans <#${channel.id}>.`, flags: 64 });
   } catch (err) {
-    console.error("Failed to post roles panel:", err);
-    await interaction.reply({ content: "❌ Erreur lors de l'envoi du panneau de rôles.", flags: 64 });
+    console.error("Failed to post lang panel:", err);
+    await interaction.reply({ content: "❌ Erreur lors de l'envoi du panneau des langues.", flags: 64 });
   }
 }
