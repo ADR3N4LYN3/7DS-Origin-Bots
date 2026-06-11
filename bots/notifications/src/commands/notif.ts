@@ -92,6 +92,13 @@ export function buildNotifCommand() {
             .setDescription("La notification à tester")
             .setRequired(true)
             .setAutocomplete(true),
+        )
+        .addChannelOption((opt) =>
+          opt
+            .setName("salon")
+            .setDescription("Salon où envoyer le test (par défaut : celui de la notif)")
+            .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+            .setRequired(false),
         ),
     );
 }
@@ -277,6 +284,10 @@ async function handleTest(
     return;
   }
 
+  // Optional channel override so tests don't spam the real notification channel.
+  const overrideChannel = interaction.options.getChannel("salon");
+  const target = overrideChannel ? { ...sub, discordChannelId: overrideChannel.id } : sub;
+
   await interaction.deferReply({ flags: 64 });
 
   // Try to send a notification with REAL live data, exactly as the automatic one would.
@@ -288,11 +299,12 @@ async function handleTest(
     ).catch(() => new Map());
     const stream = live.get(sub.sourceId.toLowerCase());
     if (stream) {
-      await sendNotification(client, sub, {
+      await sendNotification(client, target, {
         kind: "twitch",
         name: stream.userName || sub.sourceName,
         title: stream.title || "Live en cours",
         url: `https://twitch.tv/${stream.userLogin}`,
+        channelUrl: `https://twitch.tv/${stream.userLogin}/about`,
         thumbnail: `${stream.thumbnailUrl}?cb=${encodeURIComponent(stream.startedAt)}`,
         avatar: sub.avatarUrl,
         game: stream.gameName,
@@ -300,7 +312,7 @@ async function handleTest(
         viewers: stream.viewerCount,
       });
       await interaction.editReply(
-        `✅ Notification **réelle** (live en cours) envoyée dans <#${sub.discordChannelId}>.`,
+        `✅ Notification **réelle** (live en cours) envoyée dans <#${target.discordChannelId}>.`,
       );
       return;
     }
@@ -308,16 +320,17 @@ async function handleTest(
     const videos = await fetchLatestVideos(sub.sourceId).catch(() => []);
     const video = videos[0];
     if (video) {
-      await sendNotification(client, sub, {
+      await sendNotification(client, target, {
         kind: "youtube",
         name: sub.sourceName,
         title: video.title,
         url: video.url,
+        channelUrl: `https://www.youtube.com/channel/${sub.sourceId}?sub_confirmation=1`,
         thumbnail: video.thumbnail,
         avatar: sub.avatarUrl,
       });
       await interaction.editReply(
-        `✅ Aperçu **réel** (dernière vidéo) envoyé dans <#${sub.discordChannelId}>.`,
+        `✅ Aperçu **réel** (dernière vidéo) envoyé dans <#${target.discordChannelId}>.`,
       );
       return;
     }
@@ -329,7 +342,7 @@ async function handleTest(
       ? `https://www.youtube.com/channel/${sub.sourceId}`
       : `https://twitch.tv/${sub.sourceId}`;
 
-  await sendNotification(client, sub, {
+  await sendNotification(client, target, {
     kind: sub.platform,
     name: sub.sourceName,
     title: "Ceci est une notification de test",
@@ -347,8 +360,8 @@ async function handleTest(
 
   await interaction.editReply(
     sub.platform === "twitch"
-      ? `⚠️ **${sub.sourceName}** n'est pas en live — exemple factice envoyé dans <#${sub.discordChannelId}>.`
-      : `⚠️ Aucune vidéo trouvée — exemple factice envoyé dans <#${sub.discordChannelId}>.`,
+      ? `⚠️ **${sub.sourceName}** n'est pas en live — exemple factice envoyé dans <#${target.discordChannelId}>.`
+      : `⚠️ Aucune vidéo trouvée — exemple factice envoyé dans <#${target.discordChannelId}>.`,
   );
 }
 
