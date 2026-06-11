@@ -141,32 +141,37 @@ async function checkTwitch(client: Client) {
   }
 
   for (const sub of subs) {
-    const login = sub.sourceId.toLowerCase();
-    const stream = live.get(login);
-    const state = getState(sub.id);
+    // Isolate each channel: a failing one (e.g. missing perms) must not abort the rest.
+    try {
+      const login = sub.sourceId.toLowerCase();
+      const stream = live.get(login);
+      const state = getState(sub.id);
 
-    // First observation: record current status without announcing.
-    if (state.isLive === undefined) {
-      setState(sub.id, { isLive: !!stream });
-      continue;
-    }
+      // First observation: record current status without announcing.
+      if (state.isLive === undefined) {
+        setState(sub.id, { isLive: !!stream });
+        continue;
+      }
 
-    if (stream && !state.isLive) {
-      await sendNotification(client, sub, {
-        kind: "twitch",
-        name: stream.userName || sub.sourceName,
-        title: stream.title || "Live en cours",
-        url: `https://twitch.tv/${stream.userLogin}`,
-        // Cache-bust per stream so Discord shows the current preview, not a stale one.
-        thumbnail: `${stream.thumbnailUrl}?cb=${encodeURIComponent(stream.startedAt)}`,
-        avatar: sub.avatarUrl,
-        game: stream.gameName,
-        login: stream.userLogin,
-        viewers: stream.viewerCount,
-      });
-      setState(sub.id, { isLive: true });
-    } else if (!stream && state.isLive) {
-      setState(sub.id, { isLive: false });
+      if (stream && !state.isLive) {
+        await sendNotification(client, sub, {
+          kind: "twitch",
+          name: stream.userName || sub.sourceName,
+          title: stream.title || "Live en cours",
+          url: `https://twitch.tv/${stream.userLogin}`,
+          // Cache-bust per stream so Discord shows the current preview, not a stale one.
+          thumbnail: `${stream.thumbnailUrl}?cb=${encodeURIComponent(stream.startedAt)}`,
+          avatar: sub.avatarUrl,
+          game: stream.gameName,
+          login: stream.userLogin,
+          viewers: stream.viewerCount,
+        });
+        setState(sub.id, { isLive: true });
+      } else if (!stream && state.isLive) {
+        setState(sub.id, { isLive: false });
+      }
+    } catch (err) {
+      console.error(`Twitch notify failed for ${sub.sourceName}:`, err);
     }
   }
 }
