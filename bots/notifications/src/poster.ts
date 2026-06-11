@@ -13,11 +13,27 @@ export interface NotificationData {
   name: string;
   title: string;
   url: string;
+  channelUrl?: string | null; // 2nd button target (subscribe / channel page)
   thumbnail?: string | null;
   avatar?: string | null;
   game?: string | null;
   login?: string | null;
   viewers?: number | null;
+}
+
+// Button emojis — overridable via .env with a custom server emoji (e.g. <:yt:123...>).
+const BTN_EMOJI = {
+  youtube: process.env.BTN_EMOJI_YOUTUBE || "▶️",
+  youtubeSub: process.env.BTN_EMOJI_YOUTUBE_SUB || "🔔",
+  twitch: process.env.BTN_EMOJI_TWITCH || "🔴",
+  twitchChannel: process.env.BTN_EMOJI_TWITCH_CHANNEL || "💜",
+};
+
+// Accept either a unicode emoji or a Discord custom emoji string "<a:name:id>".
+function resolveEmoji(raw: string): string | { id: string; name: string; animated: boolean } {
+  const m = raw.match(/^<(a?):(\w+):(\d+)>$/);
+  if (m) return { animated: m[1] === "a", name: m[2], id: m[3] };
+  return raw;
 }
 
 const DEFAULT_TEMPLATES: Record<Platform, string> = {
@@ -62,14 +78,29 @@ function buildEmbed(data: NotificationData): EmbedBuilder {
 }
 
 function buildButtonRow(data: NotificationData): ActionRowBuilder<ButtonBuilder> {
+  const row = new ActionRowBuilder<ButtonBuilder>();
   const isYouTube = data.kind === "youtube";
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+
+  row.addComponents(
     new ButtonBuilder()
       .setStyle(ButtonStyle.Link)
       .setURL(data.url)
       .setLabel(isYouTube ? "Regarder la vidéo" : "Regarder le live")
-      .setEmoji(isYouTube ? "▶️" : "🔴"),
+      .setEmoji(resolveEmoji(isYouTube ? BTN_EMOJI.youtube : BTN_EMOJI.twitch)),
   );
+
+  // Second button → channel page (must be a distinct URL from the first).
+  if (data.channelUrl && data.channelUrl !== data.url) {
+    row.addComponents(
+      new ButtonBuilder()
+        .setStyle(ButtonStyle.Link)
+        .setURL(data.channelUrl)
+        .setLabel(isYouTube ? "S'abonner" : "Voir la chaîne")
+        .setEmoji(resolveEmoji(isYouTube ? BTN_EMOJI.youtubeSub : BTN_EMOJI.twitchChannel)),
+    );
+  }
+
+  return row;
 }
 
 export async function sendNotification(

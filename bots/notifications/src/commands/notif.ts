@@ -334,6 +334,10 @@ async function handleTest(
     name: sub.sourceName,
     title: "Ceci est une notification de test",
     url,
+    channelUrl:
+      sub.platform === "youtube"
+        ? `https://www.youtube.com/channel/${sub.sourceId}?sub_confirmation=1`
+        : `https://twitch.tv/${sub.sourceId}/about`,
     thumbnail: null,
     avatar: sub.avatarUrl,
     game: sub.platform === "twitch" ? "Catégorie de test" : null,

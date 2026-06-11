@@ -112,6 +112,7 @@ async function checkYouTube(client: Client) {
           name: sub.sourceName,
           title: video.title,
           url: video.url,
+          channelUrl: `https://www.youtube.com/channel/${sub.sourceId}?sub_confirmation=1`,
           thumbnail: video.thumbnail,
           avatar: sub.avatarUrl,
         });
@@ -159,6 +160,7 @@ async function checkTwitch(client: Client) {
           name: stream.userName || sub.sourceName,
           title: stream.title || "Live en cours",
           url: `https://twitch.tv/${stream.userLogin}`,
+          channelUrl: `https://twitch.tv/${stream.userLogin}/about`,
           // Cache-bust per stream so Discord shows the current preview, not a stale one.
           thumbnail: `${stream.thumbnailUrl}?cb=${encodeURIComponent(stream.startedAt)}`,
           avatar: sub.avatarUrl,
