@@ -422,6 +422,13 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
   withPassive.slice(0, COSTUME_LIMIT).forEach((c, idx) => {
     if (idx > 0) container.addSeparatorComponents(sep(SeparatorSpacingSize.Large));
 
+    // Costume art (full image — Discord has no medium size between this and a tiny thumbnail).
+    if (c.iconUrl) {
+      container.addMediaGalleryComponents(
+        new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(c.iconUrl).setDescription(c.name)),
+      );
+    }
+
     // Name as an H2 (bigger rarity badge), effect as subtext, then the colored passive blocks.
     const badge = rarityBadge(c.rarity);
     const lines = [`## ${badge ? `${badge} ` : ""}${c.name}`];
@@ -435,16 +442,7 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
       lines.push("```ansi\n" + block + "\n```");
     }
 
-    const text = new TextDisplayBuilder().setContent(lines.join("\n"));
-
-    // Costume art as a small thumbnail (right of the text) instead of a full-width image.
-    if (c.iconUrl) {
-      container.addSectionComponents(
-        new SectionBuilder().addTextDisplayComponents(text).setThumbnailAccessory(new ThumbnailBuilder().setURL(c.iconUrl)),
-      );
-    } else {
-      container.addTextDisplayComponents(text);
-    }
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
   });
 
   if (withPassive.length > COSTUME_LIMIT) {
