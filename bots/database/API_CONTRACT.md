@@ -21,6 +21,9 @@ BOT_API_KEY=...                              # envoyé en header x-api-key
 |--------|--------|-------|--------|
 | GET | `/characters` | `lang`, `search` | `CharacterSearchResult[]` |
 | GET | `/characters/{slug}` | `lang` | `CharacterData` |
+| GET | `/characters/{slug}/mastery` | `lang` | `CharacterMastery` (ressources par arme + total) |
+| GET | `/characters/{slug}/costumes` | `lang` | `CharacterCostumes` (skins + passifs gravés) |
+| GET | `/characters/{slug}/potential` | `lang` | `CharacterPotential` (10 paliers par arme) |
 | GET | `/pets` | `lang`, `search` | `PetSearchResult[]` |
 | GET | `/pets/{slug}` | `lang` | `PetData` |
 
