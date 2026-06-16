@@ -383,6 +383,9 @@ function addMastery(container: ContainerBuilder, mastery: CharacterMastery | und
 
 // ── Page : Costumes ─────────────────────────────────────────────────
 
+// Max costumes rendered as icon+text sections, to stay under Discord's 40-component cap.
+const COSTUME_LIMIT = 8;
+
 function addCostumes(container: ContainerBuilder, data: CharacterCostumes | undefined, lang: Lang): void {
   if (!data || data.costumes.length === 0) {
     container.addTextDisplayComponents(
@@ -391,18 +394,9 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
     return;
   }
 
-  // Visual gallery of all costume icons (max 10).
-  const withIcons = data.costumes.filter((c) => c.iconUrl).slice(0, 10);
-  if (withIcons.length > 0) {
-    container.addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(
-        ...withIcons.map((c) => new MediaGalleryItemBuilder().setURL(c.iconUrl!).setDescription(c.name)),
-      ),
-    );
-  }
+  data.costumes.slice(0, COSTUME_LIMIT).forEach((c, idx) => {
+    if (idx > 0) container.addSeparatorComponents(sep());
 
-  data.costumes.forEach((c) => {
-    container.addSeparatorComponents(sep());
     const badge = rarityBadge(c.rarity);
     const lines = [`**${badge ? `${badge} ` : ""}${c.name}**${c.isDefault ? ` · ${L(lang, "défaut", "default")}` : ""}`];
     if (c.effectDesc) lines.push(`-# ${clean(c.effectDesc)}`);
@@ -417,8 +411,27 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
       lines.push(`-# ${L(lang, "*Cosmétique uniquement*", "*Cosmetic only*")}`);
     }
 
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
+    const text = new TextDisplayBuilder().setContent(lines.join("\n"));
+
+    // Icon glued to its own costume via a Section thumbnail accessory.
+    if (c.iconUrl) {
+      container.addSectionComponents(
+        new SectionBuilder().addTextDisplayComponents(text).setThumbnailAccessory(new ThumbnailBuilder().setURL(c.iconUrl)),
+      );
+    } else {
+      container.addTextDisplayComponents(text);
+    }
   });
+
+  if (data.costumes.length > COSTUME_LIMIT) {
+    const more = data.costumes.length - COSTUME_LIMIT;
+    container.addSeparatorComponents(sep());
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `-# +${more} ${L(lang, "autres costumes — voir la fiche complète", "more costumes — see full page")}`,
+      ),
+    );
+  }
 }
 
 // ── Page : Potential ────────────────────────────────────────────────
