@@ -2,11 +2,19 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   AutocompleteInteraction,
-  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  ThumbnailBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+  MessageFlags,
   ApplicationIntegrationType,
   InteractionContextType,
 } from "discord.js";
@@ -78,8 +86,6 @@ const WEAPON_EMOJI_NAMES: Record<string, string> = {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-const FIELD_MAX = 1024;
-
 function clean(text: string): string {
   return text.replace(/\[#[0-9A-Fa-f]{6}]/g, "").replace(/\[-]/g, "");
 }
@@ -90,17 +96,6 @@ function fmt(n: number): string {
 
 function pct(n: number): string {
   return Number.isInteger(n) ? `${n}%` : `${n.toFixed(1)}%`;
-}
-
-/** Truncate to Discord's 1024-char field limit without cutting a line in two. */
-function clampField(value: string): string {
-  if (value.length <= FIELD_MAX) return value;
-  return value.slice(0, FIELD_MAX - 1).replace(/\n[^\n]*$/, "") + "…";
-}
-
-/** One stat row: `emoji Label · **value**`. */
-function stat(emoji: string, label: string, value: string): string {
-  return `${emoji} ${label} · **${value}**`;
 }
 
 function parseEmoji(key: string): { id: string; name: string } | undefined {
@@ -123,14 +118,10 @@ function weaponEmoji(key: string): string {
   return (name && getEmoji(name)) || "⚔️";
 }
 
-/** CDN image URL of the rarity badge emoji (used as the embed author icon, larger than inline). */
-function rarityBadgeUrl(rarity: string): string | null {
+/** Inline rarity badge emoji (rendered slightly larger inside the `#` title). */
+function rarityBadge(rarity: string): string {
   const name = RARITY_EMOJI_NAMES[rarity];
-  if (!name) return null;
-  const str = getEmoji(name);
-  if (!str) return null;
-  const m = str.match(/<a?:\w+:(\d+)>/);
-  return m ? `https://cdn.discordapp.com/emojis/${m[1]}.png?size=96` : null;
+  return (name && getEmoji(name)) || "";
 }
 
 function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSkill[]> {
@@ -141,6 +132,10 @@ function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSki
     map.get(key)!.push(sk);
   }
   return map;
+}
+
+function sep(spacing: SeparatorSpacingSize = SeparatorSpacingSize.Small): SeparatorBuilder {
+  return new SeparatorBuilder().setDivider(true).setSpacing(spacing);
 }
 
 // ── Lang ────────────────────────────────────────────────────────────
@@ -160,135 +155,7 @@ function L(lang: Lang, fr: string, en: string): string {
   return lang === "fr" ? fr : en;
 }
 
-// ── Shared header ───────────────────────────────────────────────────
-
-function baseEmbed(char: CharacterData): EmbedBuilder {
-  const color = ELEMENT_COLORS[char.elementKey] ?? RARITY_COLORS[char.rarity] ?? 0xc9a84c;
-
-  const header = `${elemEmoji(char.elementKey)} **${char.element}**  •  ${char.role}`;
-
-  const embed = new EmbedBuilder()
-    .setColor(color)
-    .setTitle(char.name)
-    .setURL(char.url)
-    .setDescription(header)
-    .setThumbnail(char.imageUrl || null)
-    .setFooter({ text: "7DS Origin · 7dsorigin.app" });
-
-  // Rarity shown as the author badge icon (bigger than inline, no redundant "SSR" text).
-  const badge = rarityBadgeUrl(char.rarity);
-  const authorName = char.nameEn && char.nameEn !== char.name ? char.nameEn : char.name;
-  if (badge) {
-    embed.setAuthor({ name: authorName, iconURL: badge });
-  } else if (char.nameEn && char.nameEn !== char.name) {
-    embed.setAuthor({ name: char.nameEn });
-  }
-
-  return embed;
-}
-
-// ── Page 1 : Overview ──────────────────────────────────────────────
-
-function buildOverviewEmbed(char: CharacterData, lang: Lang): EmbedBuilder {
-  const embed = baseEmbed(char);
-  const s = char.stats;
-
-  // Three balanced columns → clean stat-sheet grid.
-  const survie = [stat("❤️", L(lang, "PV", "HP"), fmt(s.hp)), stat("🛡️", "DEF", fmt(s.def))];
-  if (s.block) survie.push(stat("🧱", L(lang, "Bloc", "Block"), pct(s.block)));
-  if (s.critResist) survie.push(stat("🪨", L(lang, "Rés. Crit", "Crit Res"), pct(s.critResist)));
-
-  const attaque = [stat("⚔️", "ATK", fmt(s.atk))];
-  if (s.critRate) attaque.push(stat("🎯", "Crit", pct(s.critRate)));
-  if (s.critDamage) attaque.push(stat("💥", L(lang, "Dmg Crit", "Crit Dmg"), pct(s.critDamage)));
-
-  const util = [stat("🏃", L(lang, "Vitesse", "Speed"), fmt(s.spd))];
-  if (s.accuracy) util.push(stat("🎯", L(lang, "Précision", "Accuracy"), pct(s.accuracy)));
-
-  const statsTitle = char.statsLevel
-    ? L(lang, `📊 Stats (Niv.${char.statsLevel})`, `📊 Stats (Lv.${char.statsLevel})`)
-    : "📊 Stats";
-
-  embed.addFields(
-    { name: statsTitle, value: `🛡️ **${L(lang, "Survie", "Survival")}**\n${survie.join("\n")}`, inline: true },
-    { name: "​", value: `⚔️ **${L(lang, "Attaque", "Offense")}**\n${attaque.join("\n")}`, inline: true },
-    { name: "​", value: `✨ **${L(lang, "Utilitaire", "Utility")}**\n${util.join("\n")}`, inline: true },
-  );
-
-  // Compatible weapons.
-  const weaponLines = char.weaponSlots.map((w) =>
-    `${weaponEmoji(w.weaponKey)} **${w.weapon}** · ${elemEmoji(w.elementKey)} ${w.element} · ${w.role}`,
-  );
-  embed.addFields({
-    name: L(lang, "🗡️ Armes compatibles", "🗡️ Compatible weapons"),
-    value: clampField(weaponLines.length > 0 ? weaponLines.join("\n") : "—"),
-  });
-
-  // Adventure passive.
-  if (char.adventureSkill?.length > 0) {
-    const advLines = char.adventureSkill.map((a) => {
-      const d = clean(a.description).split("\n")[0].slice(0, 140);
-      return `**${a.name}**\n-# ${d}`;
-    });
-    embed.addFields({
-      name: L(lang, "🏕️ Passif d'aventure", "🏕️ Adventure passive"),
-      value: clampField(advLines.join("\n\n")),
-    });
-  }
-
-  if (char.bannerUrl) embed.setImage(char.bannerUrl);
-
-  return embed;
-}
-
-// ── Page 2 : Skills ────────────────────────────────────────────────
-
-function buildSkillsEmbed(char: CharacterData, weaponTypeKey: string, lang: Lang): EmbedBuilder {
-  const embed = baseEmbed(char);
-  const grouped = groupSkillsByWeapon(char.skills);
-  const skills = grouped.get(weaponTypeKey) ?? [];
-
-  const weaponLabel = skills[0]?.weaponType
-    ?? char.weaponSlots.find((w) => w.weaponKey === weaponTypeKey)?.weapon
-    ?? weaponTypeKey;
-
-  embed.addFields({
-    name: `${weaponEmoji(weaponTypeKey)} ${weaponLabel}`,
-    value: L(lang, "*Compétences liées à cette arme*", "*Skills tied to this weapon*"),
-  });
-
-  if (skills.length > 0) {
-    for (const sk of skills) {
-      const meta: string[] = [];
-      if (sk.damagePercent) meta.push(`💥 **${sk.damagePercent}**`);
-      if (sk.hitCount && sk.hitCount > 0) meta.push(`🎯 **${sk.hitCount}** hit${sk.hitCount > 1 ? "s" : ""}`);
-      if (sk.cooldown) meta.push(`⏱️ **${sk.cooldown}s**`);
-      const metaLine = meta.length > 0 ? meta.join("  •  ") + "\n" : "";
-
-      const desc = sk.description
-        ? `-# ${clean(sk.description).split("\n")[0].slice(0, 220)}\n`
-        : "";
-
-      const buffs = sk.buffs?.length
-        ? sk.buffs.map((b) => `> 🔹 ${b.name}`).join("\n")
-        : "";
-
-      embed.addFields({
-        name: `${sk.category} — ${sk.name}`,
-        value: clampField(`${metaLine}${desc}${buffs}`.trim() || "​"),
-      });
-    }
-  } else {
-    embed.addFields({
-      name: L(lang, "Aucune compétence", "No skills"),
-      value: L(lang, "*Aucun skill pour cette arme.*", "*No skill for this weapon.*"),
-    });
-  }
-
-  return embed;
-}
-
-// ── Components ──────────────────────────────────────────────────────
+// ── State ───────────────────────────────────────────────────────────
 
 type Page = "overview" | "skills";
 
@@ -308,7 +175,121 @@ function getWeaponTypes(char: CharacterData): string[] {
   return [...new Set(char.skills.map((sk) => sk.weaponTypeKey))];
 }
 
-function buildButtonRow(state: CharacterState): ActionRowBuilder<ButtonBuilder> {
+// ── Container sections (Components V2) ──────────────────────────────
+
+function addHeader(container: ContainerBuilder, char: CharacterData): void {
+  const badge = rarityBadge(char.rarity);
+  const lines = [
+    `# ${badge ? `${badge} ` : ""}${char.name}`,
+    `${elemEmoji(char.elementKey)} **${char.element}**  •  ${char.role}`,
+  ];
+  if (char.nameEn && char.nameEn !== char.name) lines.push(`-# ${char.nameEn}`);
+
+  const text = new TextDisplayBuilder().setContent(lines.join("\n"));
+
+  if (char.imageUrl) {
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(text)
+        .setThumbnailAccessory(new ThumbnailBuilder().setURL(char.imageUrl)),
+    );
+  } else {
+    container.addTextDisplayComponents(text);
+  }
+}
+
+function addOverview(container: ContainerBuilder, char: CharacterData, lang: Lang): void {
+  const s = char.stats;
+
+  const statsTitle = char.statsLevel
+    ? `### 📊 ${L(lang, "Statistiques", "Stats")} · ${L(lang, "Niv.", "Lv.")}${char.statsLevel}`
+    : `### 📊 ${L(lang, "Statistiques", "Stats")}`;
+
+  const primary = [
+    `❤️ ${L(lang, "PV", "HP")} **${fmt(s.hp)}**`,
+    `⚔️ ATK **${fmt(s.atk)}**`,
+    `🛡️ DEF **${fmt(s.def)}**`,
+    `🏃 ${L(lang, "Vitesse", "Speed")} **${fmt(s.spd)}**`,
+  ].join("  •  ");
+
+  const secondary: string[] = [];
+  if (s.critRate) secondary.push(`🎯 Crit **${pct(s.critRate)}**`);
+  if (s.critDamage) secondary.push(`💥 ${L(lang, "Dmg Crit", "Crit Dmg")} **${pct(s.critDamage)}**`);
+  if (s.accuracy) secondary.push(`✨ ${L(lang, "Précision", "Accuracy")} **${pct(s.accuracy)}**`);
+  if (s.block) secondary.push(`🧱 ${L(lang, "Bloc", "Block")} **${pct(s.block)}**`);
+  if (s.critResist) secondary.push(`🪨 ${L(lang, "Rés. Crit", "Crit Res")} **${pct(s.critResist)}**`);
+
+  const statLines = [statsTitle, primary];
+  if (secondary.length > 0) statLines.push(secondary.join("  •  "));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(statLines.join("\n")));
+
+  // Compatible weapons.
+  if (char.weaponSlots.length > 0) {
+    const lines = [`### 🗡️ ${L(lang, "Armes compatibles", "Compatible weapons")}`];
+    for (const w of char.weaponSlots) {
+      lines.push(`${weaponEmoji(w.weaponKey)} **${w.weapon}** · ${elemEmoji(w.elementKey)} ${w.element} · ${w.role}`);
+    }
+    container.addSeparatorComponents(sep());
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
+  }
+
+  // Adventure passive — full text, no truncation.
+  if (char.adventureSkill?.length > 0) {
+    const lines = [`### 🏕️ ${L(lang, "Passif d'aventure", "Adventure passive")}`];
+    for (const a of char.adventureSkill) {
+      lines.push(`**${a.name}**`);
+      if (a.description) lines.push(`-# ${clean(a.description)}`);
+    }
+    container.addSeparatorComponents(sep());
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
+  }
+
+  // Banner as a full-width media gallery.
+  if (char.bannerUrl) {
+    container.addSeparatorComponents(sep());
+    container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(char.bannerUrl)),
+    );
+  }
+}
+
+function addSkills(container: ContainerBuilder, char: CharacterData, weaponTypeKey: string, lang: Lang): void {
+  const grouped = groupSkillsByWeapon(char.skills);
+  const skills = grouped.get(weaponTypeKey) ?? [];
+  const weaponLabel = skills[0]?.weaponType
+    ?? char.weaponSlots.find((w) => w.weaponKey === weaponTypeKey)?.weapon
+    ?? weaponTypeKey;
+
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`### ${weaponEmoji(weaponTypeKey)} ${weaponLabel}`),
+  );
+
+  if (skills.length === 0) {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(L(lang, "*Aucun skill pour cette arme.*", "*No skill for this weapon.*")),
+    );
+    return;
+  }
+
+  for (const sk of skills) {
+    const meta: string[] = [];
+    if (sk.damagePercent) meta.push(`💥 **${sk.damagePercent}**`);
+    if (sk.hitCount && sk.hitCount > 0) meta.push(`🎯 **${sk.hitCount}** hit${sk.hitCount > 1 ? "s" : ""}`);
+    if (sk.cooldown) meta.push(`⏱️ **${sk.cooldown}s**`);
+
+    const lines = [`**${sk.category} — ${sk.name}**`];
+    if (meta.length > 0) lines.push(meta.join("  •  "));
+    if (sk.description) lines.push(clean(sk.description)); // full description, untruncated
+    if (sk.buffs?.length) lines.push(sk.buffs.map((b) => `> 🔹 ${b.name}`).join("\n"));
+
+    container.addSeparatorComponents(sep());
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
+  }
+}
+
+// ── Interactive rows ────────────────────────────────────────────────
+
+function buildButtonRow(state: CharacterState, disabled = false): ActionRowBuilder<ButtonBuilder> {
   const char = getChar(state);
   return new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
@@ -316,19 +297,36 @@ function buildButtonRow(state: CharacterState): ActionRowBuilder<ButtonBuilder> 
       .setLabel(L(state.lang, "Vue d'ensemble", "Overview"))
       .setEmoji("📊")
       .setStyle(state.page === "overview" ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(state.page === "overview"),
+      .setDisabled(disabled || state.page === "overview"),
     new ButtonBuilder()
       .setCustomId(`char:${char.slug}:skills`)
       .setLabel(L(state.lang, "Compétences", "Skills"))
       .setEmoji("⚔️")
       .setStyle(state.page === "skills" ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(state.page === "skills"),
+      .setDisabled(disabled || state.page === "skills"),
     new ButtonBuilder()
       .setLabel(L(state.lang, "Fiche complète", "Full page"))
       .setURL(char.url)
       .setStyle(ButtonStyle.Link)
       .setEmoji("🔗"),
   );
+}
+
+function buildWeaponSelectRow(state: CharacterState): ActionRowBuilder<StringSelectMenuBuilder> {
+  const char = getChar(state);
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`char:${char.slug}:weapon`)
+    .setPlaceholder(L(state.lang, "Choisir une arme", "Select a weapon"))
+    .addOptions(
+      getWeaponTypes(char).map((wtKey) => {
+        const slot = char.weaponSlots.find((w) => w.weaponKey === wtKey);
+        const label = slot?.weapon
+          ?? char.skills.find((sk) => sk.weaponTypeKey === wtKey)?.weaponType
+          ?? wtKey;
+        return { label, value: wtKey, emoji: parseEmoji(wtKey), default: wtKey === state.activeWeapon };
+      }),
+    );
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
 }
 
 function buildLangSelectRow(state: CharacterState): ActionRowBuilder<StringSelectMenuBuilder> {
@@ -347,77 +345,33 @@ function buildLangSelectRow(state: CharacterState): ActionRowBuilder<StringSelec
   return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
 }
 
-function buildWeaponSelectRow(state: CharacterState): ActionRowBuilder<StringSelectMenuBuilder> {
+function buildContainer(state: CharacterState, expired = false): ContainerBuilder {
   const char = getChar(state);
-  const weaponTypes = getWeaponTypes(char);
+  const color = ELEMENT_COLORS[char.elementKey] ?? RARITY_COLORS[char.rarity] ?? 0xc9a84c;
+  const container = new ContainerBuilder().setAccentColor(color);
 
-  const select = new StringSelectMenuBuilder()
-    .setCustomId(`char:${char.slug}:weapon`)
-    .setPlaceholder(L(state.lang, "Choisir une arme", "Select a weapon"))
-    .addOptions(
-      weaponTypes.map((wtKey) => {
-        const slot = char.weaponSlots.find((w) => w.weaponKey === wtKey);
-        const label = slot?.weapon
-          ?? char.skills.find((sk) => sk.weaponTypeKey === wtKey)?.weaponType
-          ?? wtKey;
+  addHeader(container, char);
+  container.addSeparatorComponents(sep(SeparatorSpacingSize.Large));
 
-        return {
-          label,
-          value: wtKey,
-          emoji: parseEmoji(wtKey),
-          default: wtKey === state.activeWeapon,
-        };
-      }),
-    );
+  if (state.page === "overview") addOverview(container, char, state.lang);
+  else addSkills(container, char, state.activeWeapon, state.lang);
 
-  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
-}
+  container.addSeparatorComponents(sep(SeparatorSpacingSize.Large));
+  container.addActionRowComponents(buildButtonRow(state, expired));
 
-function buildComponents(
-  state: CharacterState,
-): (ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>)[] {
-  const rows: (ActionRowBuilder<ButtonBuilder> | ActionRowBuilder<StringSelectMenuBuilder>)[] = [
-    buildButtonRow(state),
-  ];
-
-  if (state.page === "skills" && getWeaponTypes(getChar(state)).length > 1) {
-    rows.push(buildWeaponSelectRow(state));
+  if (!expired) {
+    if (state.page === "skills" && getWeaponTypes(char).length > 1) {
+      container.addActionRowComponents(buildWeaponSelectRow(state));
+    }
+    container.addActionRowComponents(buildLangSelectRow(state));
   }
 
-  rows.push(buildLangSelectRow(state));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent("-# 7DS Origin · 7dsorigin.app"));
 
-  return rows;
+  return container;
 }
 
-function buildExpiredComponents(state: CharacterState): ActionRowBuilder<ButtonBuilder> {
-  const char = getChar(state);
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId("char:expired:overview")
-      .setLabel(L(state.lang, "Vue d'ensemble", "Overview"))
-      .setEmoji("📊")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true),
-    new ButtonBuilder()
-      .setCustomId("char:expired:skills")
-      .setLabel(L(state.lang, "Compétences", "Skills"))
-      .setEmoji("⚔️")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true),
-    new ButtonBuilder()
-      .setLabel(L(state.lang, "Fiche complète", "Full page"))
-      .setURL(char.url)
-      .setStyle(ButtonStyle.Link)
-      .setEmoji("🔗"),
-  );
-}
-
-function buildCurrentEmbed(state: CharacterState): EmbedBuilder {
-  const char = getChar(state);
-  return state.page === "overview"
-    ? buildOverviewEmbed(char, state.lang)
-    : buildSkillsEmbed(char, state.activeWeapon, state.lang);
-}
+const V2 = { flags: MessageFlags.IsComponentsV2 as const };
 
 // ── Command definition ──────────────────────────────────────────────
 
@@ -468,19 +422,19 @@ export async function handleCharacterCommand(
   apiClient: ApiClient,
 ) {
   const slug = interaction.options.getString("name", true);
-  await interaction.deferReply();
 
+  // Components V2 messages can't be created via deferReply (flag unsupported there),
+  // so fetch the default language first, then reply directly.
   let fr: CharacterData;
   try {
     fr = await apiClient.getCharacter(slug, "fr");
   } catch (err) {
     console.error("Character fetch error:", err);
-    await interaction.editReply({ content: "❌ Personnage introuvable ou erreur API." });
+    await interaction.reply({ content: "❌ Personnage introuvable ou erreur API.", flags: MessageFlags.Ephemeral });
     return;
   }
 
   const weaponTypes = getWeaponTypes(fr);
-
   const state: CharacterState = {
     data: { fr },
     slug,
@@ -489,16 +443,12 @@ export async function handleCharacterCommand(
     activeWeapon: weaponTypes[0] ?? "",
   };
 
-  const reply = await interaction.editReply({
-    embeds: [buildCurrentEmbed(state)],
-    components: buildComponents(state),
-  });
-
-  const collector = reply.createMessageComponentCollector({ time: COLLECTOR_TIMEOUT });
+  const response = await interaction.reply({ components: [buildContainer(state)], ...V2 });
+  const collector = response.createMessageComponentCollector({ time: COLLECTOR_TIMEOUT });
 
   collector.on("collect", async (i) => {
     if (i.user.id !== interaction.user.id) {
-      await i.reply({ content: "Utilise `/character` pour ta propre recherche.", flags: 64 });
+      await i.reply({ content: "Utilise `/character` pour ta propre recherche.", flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -506,7 +456,7 @@ export async function handleCharacterCommand(
       const action = i.customId.split(":")[2];
       if (action === "overview") state.page = "overview";
       else if (action === "skills") state.page = "skills";
-      await i.update({ embeds: [buildCurrentEmbed(state)], components: buildComponents(state) });
+      await i.update({ components: [buildContainer(state)], ...V2 });
       return;
     }
 
@@ -515,7 +465,7 @@ export async function handleCharacterCommand(
 
       if (action === "weapon") {
         state.activeWeapon = i.values[0];
-        await i.update({ embeds: [buildCurrentEmbed(state)], components: buildComponents(state) });
+        await i.update({ components: [buildContainer(state)], ...V2 });
         return;
       }
 
@@ -529,7 +479,7 @@ export async function handleCharacterCommand(
           if (needFetch) state.data[newLang] = await apiClient.getCharacter(slug, newLang);
         } catch (err) {
           console.error("Character lang fetch error:", err);
-          await i.followUp({ content: "❌ Erreur de chargement de cette langue.", flags: 64 });
+          await i.followUp({ content: "❌ Erreur de chargement de cette langue.", flags: MessageFlags.Ephemeral });
           return;
         }
 
@@ -537,7 +487,7 @@ export async function handleCharacterCommand(
         const wt = getWeaponTypes(getChar(state));
         if (!wt.includes(state.activeWeapon)) state.activeWeapon = wt[0] ?? "";
 
-        const payload = { embeds: [buildCurrentEmbed(state)], components: buildComponents(state) };
+        const payload = { components: [buildContainer(state)], ...V2 };
         if (needFetch) await interaction.editReply(payload);
         else await i.update(payload);
       }
@@ -546,7 +496,7 @@ export async function handleCharacterCommand(
 
   collector.on("end", async () => {
     try {
-      await interaction.editReply({ components: [buildExpiredComponents(state)] });
+      await interaction.editReply({ components: [buildContainer(state, true)], ...V2 });
     } catch { /* message may have been deleted */ }
   });
 }
