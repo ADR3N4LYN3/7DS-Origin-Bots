@@ -372,8 +372,13 @@ function addSkills(container: ContainerBuilder, char: CharacterData, weaponTypeK
 
 // ── Page : Mastery ──────────────────────────────────────────────────
 
-function materialLines(materials: { name: string; quantity: number }[]): string {
-  return materials.map((m) => `• ${m.name} **×${m.quantity}**`).join("\n") || "—";
+function materialLines(materials: { itemId: string; name: string; quantity: number }[]): string {
+  return materials
+    .map((m) => {
+      const icon = getEmoji(`item_${m.itemId}`);
+      return `${icon ?? "•"} ${m.name} **×${m.quantity}**`;
+    })
+    .join("\n") || "—";
 }
 
 function addMastery(container: ContainerBuilder, mastery: CharacterMastery | undefined, weaponKey: string, lang: Lang): void {

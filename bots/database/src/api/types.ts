@@ -91,7 +91,17 @@ export interface MasteryMaterial {
   name: string;
   slug: string;
   grade: string | null;
+  iconUrl: string | null;
   quantity: number;
+}
+
+/** Item from GET /items?usage=mastery — used to pre-sync Discord emojis. */
+export interface Item {
+  itemId: string;
+  name: string;
+  slug: string;
+  grade: string | null;
+  iconUrl: string | null;
 }
 
 export interface MasteryWeapon {
@@ -120,6 +130,8 @@ export interface CostumeBindingMaterial {
   itemId: string;
   name: string;
   slug: string;
+  grade: string | null;
+  iconUrl: string | null;
   quantity: number;
 }
 

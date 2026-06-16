@@ -4,6 +4,7 @@ import type {
   CharacterMastery,
   CharacterCostumes,
   CharacterPotential,
+  Item,
   PetData,
   PetSearchResult,
 } from "./types.js";
@@ -76,6 +77,10 @@ export class ApiClient {
 
   async getPotential(slug: string, lang = "fr"): Promise<CharacterPotential> {
     return this.fetch(`/characters/${slug}/potential?lang=${lang}`);
+  }
+
+  async getItems(usage = "mastery", lang = "fr"): Promise<Item[]> {
+    return this.fetch(`/items?usage=${usage}&lang=${lang}`);
   }
 
   async searchPets(query: string, lang = "fr"): Promise<PetSearchResult[]> {
