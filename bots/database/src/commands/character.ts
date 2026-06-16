@@ -48,27 +48,30 @@ const ELEMENT_COLORS: Record<string, number> = {
 };
 
 const RARITY_COLORS: Record<string, number> = {
-  SSR: 0xffd700, SR: 0xc084fc, R: 0x60a5fa,
+  SSR: 0xffd700, SR: 0xc084fc, R: 0x60a5fa, N: 0x9ca3af, C: 0x4ade80,
 };
 
 const RARITY_EMOJI_NAMES: Record<string, string> = {
   SSR: "badge_ssr",
   SR: "badge_sr",
+  R: "badge_r",
+  N: "badge_n",
+  C: "badge_c",
 };
 
 const WEAPON_EMOJI_NAMES: Record<string, string> = {
-  SWORD1H: "ItemDivision_sword1h",
-  SWORDDUAL: "ItemDivision_sworddual",
-  SWORD2H: "ItemDivision_sword2h",
-  AXE: "ItemDivision_axe",
-  STAFF: "ItemDivision_staff",
-  LANCE: "ItemDivision_lance",
-  RAPIER: "ItemDivision_rapier",
-  SHIELD: "ItemDivision_shield",
-  WAND: "ItemDivision_wand",
-  BOOK: "ItemDivision_book",
-  GAUNTLETS: "ItemDivision_gauntlets",
-  CUDGEL3C: "ItemDivision_cudgel3c",
+  SWORD1H: "mastery_sword1h",
+  SWORDDUAL: "mastery_sworddual",
+  SWORD2H: "mastery_sword2h",
+  AXE: "mastery_axe",
+  STAFF: "mastery_staff",
+  LANCE: "mastery_lance",
+  RAPIER: "mastery_rapier",
+  SHIELD: "mastery_shield",
+  WAND: "mastery_wand",
+  BOOK: "mastery_book",
+  GAUNTLETS: "mastery_gauntlets",
+  CUDGEL3C: "mastery_cudgel3c",
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────

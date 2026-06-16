@@ -53,19 +53,22 @@ const SOURCE_UNICODE: Record<string, string> = {
 
 // Potion grade → application emoji name
 const POTION_GRADE_EMOJI_NAMES: Record<string, string> = {
-  grade2: "popobase",
-  grade3: "popobleue",
-  grade4: "popoepic",
-  grade5: "popoleg",
+  grade2: "PotCommon",
+  grade3: "PotRare",
+  grade4: "PotEpic",
+  grade5: "PotLeg",
 };
 
 const RARITY_COLORS: Record<string, number> = {
-  SSR: 0xffd700, SR: 0xc084fc, R: 0x60a5fa,
+  SSR: 0xffd700, SR: 0xc084fc, R: 0x60a5fa, N: 0x9ca3af, C: 0x4ade80,
 };
 
 const RARITY_EMOJI_NAMES: Record<string, string> = {
   SSR: "badge_ssr",
   SR: "badge_sr",
+  R: "badge_r",
+  N: "badge_n",
+  C: "badge_c",
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────
