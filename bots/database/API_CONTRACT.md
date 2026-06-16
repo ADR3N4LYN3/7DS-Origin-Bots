@@ -24,8 +24,14 @@ BOT_API_KEY=...                              # envoyé en header x-api-key
 | GET | `/characters/{slug}/mastery` | `lang` | `CharacterMastery` (ressources par arme + total) |
 | GET | `/characters/{slug}/costumes` | `lang` | `CharacterCostumes` (skins + passifs gravés) |
 | GET | `/characters/{slug}/potential` | `lang` | `CharacterPotential` (10 paliers par arme) |
+| GET | `/items` | `usage=mastery`, `lang` | `Item[]` (énumération pour la sync d'emojis ; `usage` défaut/seul = `mastery`) |
 | GET | `/pets` | `lang`, `search` | `PetSearchResult[]` |
 | GET | `/pets/{slug}` | `lang` | `PetData` |
+
+> Icônes d'items : les matériaux (mastery + costumes) portent un `iconUrl`. Le script
+> [`scripts/sync-item-emojis.ts`](scripts/sync-item-emojis.ts) (`pnpm sync:emojis`) les
+> uploade en application emojis nommés `item_{itemId}` ; le bot les affiche devant chaque
+> matériau. Relancer après ajout d'items, puis `pm2 restart 7ds-database`.
 
 - Auth : header `x-api-key: <BOT_API_KEY>`.
 - `lang` ∈ `fr | en | es | de | pt` (le bot charge `fr` par défaut puis les autres à la demande).
