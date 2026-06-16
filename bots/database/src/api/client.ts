@@ -1,4 +1,12 @@
-import type { CharacterData, CharacterSearchResult, PetData, PetSearchResult } from "./types.js";
+import type {
+  CharacterData,
+  CharacterSearchResult,
+  CharacterMastery,
+  CharacterCostumes,
+  CharacterPotential,
+  PetData,
+  PetSearchResult,
+} from "./types.js";
 
 /** Raised on any non-2xx API response, carrying the HTTP status for callers that care. */
 export class ApiError extends Error {
@@ -56,6 +64,18 @@ export class ApiClient {
 
   async getCharacter(slug: string, lang = "fr"): Promise<CharacterData> {
     return this.fetch(`/characters/${slug}?lang=${lang}`);
+  }
+
+  async getMastery(slug: string, lang = "fr"): Promise<CharacterMastery> {
+    return this.fetch(`/characters/${slug}/mastery?lang=${lang}`);
+  }
+
+  async getCostumes(slug: string, lang = "fr"): Promise<CharacterCostumes> {
+    return this.fetch(`/characters/${slug}/costumes?lang=${lang}`);
+  }
+
+  async getPotential(slug: string, lang = "fr"): Promise<CharacterPotential> {
+    return this.fetch(`/characters/${slug}/potential?lang=${lang}`);
   }
 
   async searchPets(query: string, lang = "fr"): Promise<PetSearchResult[]> {

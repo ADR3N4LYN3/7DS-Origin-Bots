@@ -84,6 +84,104 @@ export interface CharacterData {
   url: string;
 }
 
+// ── Character · Mastery ─────────────────────────────────────────────
+
+export interface MasteryMaterial {
+  itemId: string;
+  name: string;
+  slug: string;
+  grade: string | null;
+  quantity: number;
+}
+
+export interface MasteryWeapon {
+  weaponType: string;
+  weaponTypeKey: string;
+  element: string | null;
+  elementKey: string | null;
+  role: string | null;
+  roleKey: string | null;
+  goldTotal: number;
+  currencyTotal: number;
+  materials: MasteryMaterial[];
+}
+
+export interface CharacterMastery {
+  slug: string;
+  name: string;
+  nameEn: string;
+  weapons: MasteryWeapon[];
+  total: { goldTotal: number; currencyTotal: number; materials: MasteryMaterial[] };
+}
+
+// ── Character · Costumes ────────────────────────────────────────────
+
+export interface CostumeBindingMaterial {
+  itemId: string;
+  name: string;
+  slug: string;
+  quantity: number;
+}
+
+export interface CostumeEngravingLevel {
+  level: number;
+  description: string;
+}
+
+export interface CostumeEngravingPassive {
+  id: string | null;
+  name: string;
+  iconUrl: string | null;
+  levels: CostumeEngravingLevel[];
+}
+
+export interface Costume {
+  slug: string;
+  name: string;
+  nameEn: string;
+  rarity: "R" | "SR" | "SSR";
+  isDefault: boolean;
+  iconUrl: string | null;
+  effectName: string | null;
+  effectDesc: string | null;
+  itemGameId: string | null;
+  bindingMaterials: CostumeBindingMaterial[] | null;
+  engravingPassives: CostumeEngravingPassive[] | null;
+}
+
+export interface CharacterCostumes {
+  slug: string;
+  name: string;
+  nameEn: string;
+  costumes: Costume[];
+}
+
+// ── Character · Potential ───────────────────────────────────────────
+
+export interface PotentialStat {
+  stat: string;
+  value: number;
+}
+
+export interface PotentialTier {
+  tier: number;
+  bonus: string;
+  stats: PotentialStat[];
+}
+
+export interface PotentialWeapon {
+  weaponType: string;
+  weaponTypeKey: string;
+  tiers: PotentialTier[];
+}
+
+export interface CharacterPotential {
+  slug: string;
+  name: string;
+  nameEn: string;
+  potentials: PotentialWeapon[];
+}
+
 // ── Pets ────────────────────────────────────────────────────────────
 
 export interface PetSearchResult {

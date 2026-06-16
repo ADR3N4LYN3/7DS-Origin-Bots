@@ -19,7 +19,13 @@ import {
   InteractionContextType,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
-import type { CharacterData, CharacterSkill } from "../api/types.js";
+import type {
+  CharacterData,
+  CharacterSkill,
+  CharacterMastery,
+  CharacterCostumes,
+  CharacterPotential,
+} from "../api/types.js";
 import { getEmoji } from "../utils/botEmojis.js";
 
 // ── Key → emoji name mappings (resolved at runtime via getEmoji) ────
@@ -94,9 +100,9 @@ function pct(n: number): string {
   return Number.isInteger(n) ? `${n}%` : `${n.toFixed(1)}%`;
 }
 
-/** Like fmt but with regular spaces so it aligns inside a monospace code block. */
+/** Number with regular spaces so it aligns inside a monospace code block. */
 function fmtMono(n: number): string {
-  return n.toLocaleString("fr-FR").replace(/[  ]/g, " ");
+  return n.toLocaleString("fr-FR").replace(/[  ]/g, " ");
 }
 
 /** Render two stat columns as an aligned monospace table (label left, value right-aligned). */
@@ -178,10 +184,24 @@ function L(lang: Lang, fr: string, en: string): string {
 
 // ── State ───────────────────────────────────────────────────────────
 
-type Page = "overview" | "skills";
+type Page = "overview" | "skills" | "mastery" | "costumes" | "potential";
+
+const PAGE_OPTIONS: { value: Page; fr: string; en: string; emoji: string }[] = [
+  { value: "overview", fr: "Vue d'ensemble", en: "Overview", emoji: "📊" },
+  { value: "skills", fr: "Compétences", en: "Skills", emoji: "⚔️" },
+  { value: "mastery", fr: "Maîtrise", en: "Mastery", emoji: "🔨" },
+  { value: "costumes", fr: "Costumes", en: "Costumes", emoji: "👗" },
+  { value: "potential", fr: "Potentiel", en: "Potential", emoji: "🌟" },
+];
+
+/** Pages whose content is keyed by weapon (share the weapon select). */
+const WEAPON_PAGES: Page[] = ["skills", "mastery", "potential"];
 
 interface CharacterState {
-  data: Partial<Record<Lang, CharacterData>>; // lazily filled per language
+  data: Partial<Record<Lang, CharacterData>>;          // base /characters/{slug}
+  mastery: Partial<Record<Lang, CharacterMastery>>;    // /mastery
+  costumes: Partial<Record<Lang, CharacterCostumes>>;  // /costumes
+  potential: Partial<Record<Lang, CharacterPotential>>;// /potential
   slug: string;
   lang: Lang;
   page: Page;
@@ -196,7 +216,28 @@ function getWeaponTypes(char: CharacterData): string[] {
   return [...new Set(char.skills.map((sk) => sk.weaponTypeKey))];
 }
 
-// ── Container sections (Components V2) ──────────────────────────────
+/** Whether everything needed to render the current (page, lang) is already cached. */
+function isLoaded(state: CharacterState): boolean {
+  if (!state.data[state.lang]) return false;
+  if (state.page === "mastery") return !!state.mastery[state.lang];
+  if (state.page === "costumes") return !!state.costumes[state.lang];
+  if (state.page === "potential") return !!state.potential[state.lang];
+  return true;
+}
+
+/** Fetch (lazily) the base + section data needed for the current (page, lang). */
+async function ensure(state: CharacterState, api: ApiClient): Promise<void> {
+  if (!state.data[state.lang]) state.data[state.lang] = await api.getCharacter(state.slug, state.lang);
+  if (state.page === "mastery" && !state.mastery[state.lang]) {
+    state.mastery[state.lang] = await api.getMastery(state.slug, state.lang);
+  } else if (state.page === "costumes" && !state.costumes[state.lang]) {
+    state.costumes[state.lang] = await api.getCostumes(state.slug, state.lang);
+  } else if (state.page === "potential" && !state.potential[state.lang]) {
+    state.potential[state.lang] = await api.getPotential(state.slug, state.lang);
+  }
+}
+
+// ── Header ──────────────────────────────────────────────────────────
 
 function addHeader(container: ContainerBuilder, char: CharacterData): void {
   const badge = rarityBadge(char.rarity);
@@ -207,7 +248,6 @@ function addHeader(container: ContainerBuilder, char: CharacterData): void {
   if (char.nameEn && char.nameEn !== char.name) lines.push(`-# ${char.nameEn}`);
 
   const text = new TextDisplayBuilder().setContent(lines.join("\n"));
-
   if (char.imageUrl) {
     container.addSectionComponents(
       new SectionBuilder()
@@ -218,6 +258,8 @@ function addHeader(container: ContainerBuilder, char: CharacterData): void {
     container.addTextDisplayComponents(text);
   }
 }
+
+// ── Page : Overview ─────────────────────────────────────────────────
 
 function addOverview(container: ContainerBuilder, char: CharacterData, lang: Lang): void {
   const s = char.stats;
@@ -243,7 +285,6 @@ function addOverview(container: ContainerBuilder, char: CharacterData, lang: Lan
     new TextDisplayBuilder().setContent(`${statsTitle}\n\`\`\`\n${twoColTable(left, right)}\n\`\`\``),
   );
 
-  // Compatible weapons.
   if (char.weaponSlots.length > 0) {
     const lines = [`### 🗡️ ${L(lang, "Armes compatibles", "Compatible weapons")}`];
     for (const w of char.weaponSlots) {
@@ -253,7 +294,6 @@ function addOverview(container: ContainerBuilder, char: CharacterData, lang: Lan
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
   }
 
-  // Adventure passive — full text, no truncation.
   if (char.adventureSkill?.length > 0) {
     const lines = [`### 🏕️ ${L(lang, "Passif d'aventure", "Adventure passive")}`];
     for (const a of char.adventureSkill) {
@@ -264,7 +304,6 @@ function addOverview(container: ContainerBuilder, char: CharacterData, lang: Lan
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
   }
 
-  // Banner as a full-width media gallery.
   if (char.bannerUrl) {
     container.addSeparatorComponents(sep());
     container.addMediaGalleryComponents(
@@ -272,6 +311,8 @@ function addOverview(container: ContainerBuilder, char: CharacterData, lang: Lan
     );
   }
 }
+
+// ── Page : Skills ───────────────────────────────────────────────────
 
 function addSkills(container: ContainerBuilder, char: CharacterData, weaponTypeKey: string, lang: Lang): void {
   const grouped = groupSkillsByWeapon(char.skills);
@@ -307,29 +348,114 @@ function addSkills(container: ContainerBuilder, char: CharacterData, weaponTypeK
   }
 }
 
+// ── Page : Mastery ──────────────────────────────────────────────────
+
+function materialLines(materials: { name: string; quantity: number }[]): string {
+  return materials.map((m) => `• ${m.name} **×${m.quantity}**`).join("\n") || "—";
+}
+
+function addMastery(container: ContainerBuilder, mastery: CharacterMastery | undefined, weaponKey: string, lang: Lang): void {
+  if (!mastery || mastery.weapons.length === 0) {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(L(lang, "*Aucune maîtrise pour ce personnage.*", "*No mastery for this character.*")),
+    );
+    return;
+  }
+
+  const w = mastery.weapons.find((x) => x.weaponTypeKey === weaponKey) ?? mastery.weapons[0];
+
+  const head = [`### 🔨 ${L(lang, "Maîtrise", "Mastery")} — ${weaponEmoji(w.weaponTypeKey)} ${w.weaponType}`];
+  const cost = [`🪙 ${L(lang, "Or", "Gold")} **${fmtMono(w.goldTotal)}**`];
+  if (w.currencyTotal > 0) cost.push(`💎 ${L(lang, "Devise", "Currency")} **${fmtMono(w.currencyTotal)}**`);
+  head.push(cost.join("  •  "));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(head.join("\n")));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(materialLines(w.materials)));
+
+  // Total across all weapons.
+  container.addSeparatorComponents(sep());
+  const totHead = [`### 🧮 ${L(lang, "Total — toutes armes", "Total — all weapons")}`];
+  const totCost = [`🪙 ${L(lang, "Or", "Gold")} **${fmtMono(mastery.total.goldTotal)}**`];
+  if (mastery.total.currencyTotal > 0) totCost.push(`💎 **${fmtMono(mastery.total.currencyTotal)}**`);
+  totHead.push(totCost.join("  •  "));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(totHead.join("\n")));
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(materialLines(mastery.total.materials)));
+}
+
+// ── Page : Costumes ─────────────────────────────────────────────────
+
+function addCostumes(container: ContainerBuilder, data: CharacterCostumes | undefined, lang: Lang): void {
+  if (!data || data.costumes.length === 0) {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(L(lang, "*Aucun costume.*", "*No costume.*")),
+    );
+    return;
+  }
+
+  // Visual gallery of all costume icons (max 10).
+  const withIcons = data.costumes.filter((c) => c.iconUrl).slice(0, 10);
+  if (withIcons.length > 0) {
+    container.addMediaGalleryComponents(
+      new MediaGalleryBuilder().addItems(
+        ...withIcons.map((c) => new MediaGalleryItemBuilder().setURL(c.iconUrl!).setDescription(c.name)),
+      ),
+    );
+  }
+
+  data.costumes.forEach((c) => {
+    container.addSeparatorComponents(sep());
+    const badge = rarityBadge(c.rarity);
+    const lines = [`**${badge ? `${badge} ` : ""}${c.name}**${c.isDefault ? ` · ${L(lang, "défaut", "default")}` : ""}`];
+    if (c.effectDesc) lines.push(`-# ${clean(c.effectDesc)}`);
+
+    if (c.engravingPassives?.length) {
+      lines.push(`**${L(lang, "Passifs gravés", "Engraving passives")}**`);
+      for (const ep of c.engravingPassives) {
+        lines.push(`🔹 **${ep.name}**`);
+        for (const lv of ep.levels) lines.push(`-# Lv.${lv.level} · ${clean(lv.description)}`);
+      }
+    } else if (c.bindingMaterials === null && c.engravingPassives === null) {
+      lines.push(`-# ${L(lang, "*Cosmétique uniquement*", "*Cosmetic only*")}`);
+    }
+
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
+  });
+}
+
+// ── Page : Potential ────────────────────────────────────────────────
+
+function addPotential(container: ContainerBuilder, data: CharacterPotential | undefined, weaponKey: string, lang: Lang): void {
+  if (!data || data.potentials.length === 0) {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(L(lang, "*Aucun potentiel pour ce personnage.*", "*No potential for this character.*")),
+    );
+    return;
+  }
+
+  const w = data.potentials.find((x) => x.weaponTypeKey === weaponKey) ?? data.potentials[0];
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`### 🌟 ${L(lang, "Potentiel", "Potential")} — ${weaponEmoji(w.weaponTypeKey)} ${w.weaponType}`),
+  );
+
+  const lines = w.tiers.map((t) => `**${L(lang, "Palier", "Tier")} ${t.tier}** · ${clean(t.bonus)}`);
+  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
+}
+
 // ── Interactive rows ────────────────────────────────────────────────
 
-function buildButtonRow(state: CharacterState, disabled = false): ActionRowBuilder<ButtonBuilder> {
+function buildPageSelectRow(state: CharacterState): ActionRowBuilder<StringSelectMenuBuilder> {
   const char = getChar(state);
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`char:${char.slug}:overview`)
-      .setLabel(L(state.lang, "Vue d'ensemble", "Overview"))
-      .setEmoji("📊")
-      .setStyle(state.page === "overview" ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(disabled || state.page === "overview"),
-    new ButtonBuilder()
-      .setCustomId(`char:${char.slug}:skills`)
-      .setLabel(L(state.lang, "Compétences", "Skills"))
-      .setEmoji("⚔️")
-      .setStyle(state.page === "skills" ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setDisabled(disabled || state.page === "skills"),
-    new ButtonBuilder()
-      .setLabel(L(state.lang, "Fiche complète", "Full page"))
-      .setURL(char.url)
-      .setStyle(ButtonStyle.Link)
-      .setEmoji("🔗"),
-  );
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`char:${char.slug}:page`)
+    .setPlaceholder(L(state.lang, "Section", "Section"))
+    .addOptions(
+      PAGE_OPTIONS.map((p) => ({
+        label: L(state.lang, p.fr, p.en),
+        value: p.value,
+        emoji: p.emoji,
+        default: p.value === state.page,
+      })),
+    );
+  return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
 }
 
 function buildWeaponSelectRow(state: CharacterState): ActionRowBuilder<StringSelectMenuBuilder> {
@@ -365,6 +491,17 @@ function buildLangSelectRow(state: CharacterState): ActionRowBuilder<StringSelec
   return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
 }
 
+function buildLinkRow(state: CharacterState): ActionRowBuilder<ButtonBuilder> {
+  const char = getChar(state);
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setLabel(L(state.lang, "Fiche complète", "Full page"))
+      .setURL(char.url)
+      .setStyle(ButtonStyle.Link)
+      .setEmoji("🔗"),
+  );
+}
+
 function buildContainer(state: CharacterState, expired = false): ContainerBuilder {
   const char = getChar(state);
   const color = ELEMENT_COLORS[char.elementKey] ?? RARITY_COLORS[char.rarity] ?? 0xc9a84c;
@@ -373,18 +510,24 @@ function buildContainer(state: CharacterState, expired = false): ContainerBuilde
   addHeader(container, char);
   container.addSeparatorComponents(sep(SeparatorSpacingSize.Large));
 
-  if (state.page === "overview") addOverview(container, char, state.lang);
-  else addSkills(container, char, state.activeWeapon, state.lang);
+  switch (state.page) {
+    case "overview": addOverview(container, char, state.lang); break;
+    case "skills": addSkills(container, char, state.activeWeapon, state.lang); break;
+    case "mastery": addMastery(container, state.mastery[state.lang], state.activeWeapon, state.lang); break;
+    case "costumes": addCostumes(container, state.costumes[state.lang], state.lang); break;
+    case "potential": addPotential(container, state.potential[state.lang], state.activeWeapon, state.lang); break;
+  }
 
   container.addSeparatorComponents(sep(SeparatorSpacingSize.Large));
-  container.addActionRowComponents(buildButtonRow(state, expired));
 
   if (!expired) {
-    if (state.page === "skills" && getWeaponTypes(char).length > 1) {
+    container.addActionRowComponents(buildPageSelectRow(state));
+    if (WEAPON_PAGES.includes(state.page) && getWeaponTypes(char).length > 1) {
       container.addActionRowComponents(buildWeaponSelectRow(state));
     }
     container.addActionRowComponents(buildLangSelectRow(state));
   }
+  container.addActionRowComponents(buildLinkRow(state));
 
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent("-# 7DS Origin · 7dsorigin.app"));
 
@@ -457,6 +600,9 @@ export async function handleCharacterCommand(
   const weaponTypes = getWeaponTypes(fr);
   const state: CharacterState = {
     data: { fr },
+    mastery: {},
+    costumes: {},
+    potential: {},
     slug,
     lang: "fr",
     page: "overview",
@@ -471,47 +617,31 @@ export async function handleCharacterCommand(
       await i.reply({ content: "Utilise `/character` pour ta propre recherche.", flags: MessageFlags.Ephemeral });
       return;
     }
+    if (!i.isStringSelectMenu()) return; // only the select menus drive navigation
 
-    if (i.isButton()) {
-      const action = i.customId.split(":")[2];
-      if (action === "overview") state.page = "overview";
-      else if (action === "skills") state.page = "skills";
-      await i.update({ components: [buildContainer(state)], ...V2 });
+    const action = i.customId.split(":")[2];
+    if (action === "page") state.page = i.values[0] as Page;
+    else if (action === "weapon") state.activeWeapon = i.values[0];
+    else if (action === "lang") state.lang = i.values[0] as Lang;
+    else return;
+
+    const needFetch = !isLoaded(state);
+    if (needFetch) await i.deferUpdate();
+    try {
+      await ensure(state, apiClient);
+    } catch (err) {
+      console.error("Character section fetch error:", err);
+      await i.followUp({ content: "❌ Erreur de chargement de cette section.", flags: MessageFlags.Ephemeral });
       return;
     }
 
-    if (i.isStringSelectMenu()) {
-      const action = i.customId.split(":")[2];
+    // Keep the active weapon valid against the base data.
+    const wt = getWeaponTypes(getChar(state));
+    if (!state.activeWeapon || !wt.includes(state.activeWeapon)) state.activeWeapon = wt[0] ?? "";
 
-      if (action === "weapon") {
-        state.activeWeapon = i.values[0];
-        await i.update({ components: [buildContainer(state)], ...V2 });
-        return;
-      }
-
-      if (action === "lang") {
-        const newLang = i.values[0] as Lang;
-        const needFetch = !state.data[newLang];
-
-        // Languages are fetched on demand (1 API call up-front, not 5).
-        if (needFetch) await i.deferUpdate();
-        try {
-          if (needFetch) state.data[newLang] = await apiClient.getCharacter(slug, newLang);
-        } catch (err) {
-          console.error("Character lang fetch error:", err);
-          await i.followUp({ content: "❌ Erreur de chargement de cette langue.", flags: MessageFlags.Ephemeral });
-          return;
-        }
-
-        state.lang = newLang;
-        const wt = getWeaponTypes(getChar(state));
-        if (!wt.includes(state.activeWeapon)) state.activeWeapon = wt[0] ?? "";
-
-        const payload = { components: [buildContainer(state)], ...V2 };
-        if (needFetch) await interaction.editReply(payload);
-        else await i.update(payload);
-      }
-    }
+    const payload = { components: [buildContainer(state)], ...V2 };
+    if (needFetch) await interaction.editReply(payload);
+    else await i.update(payload);
   });
 
   collector.on("end", async () => {
