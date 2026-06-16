@@ -118,6 +118,25 @@ function colorize(text: string): string {
     .replace(/\[-\]/g, "");
 }
 
+/** A description block: colored ANSI when `colored`, otherwise plain text. */
+function describe(text: string, colored: boolean): string {
+  return colored ? "```ansi\n" + colorize(text) + "\n```" : clean(text);
+}
+
+/** Sum of all displayable text (Discord caps a message's V2 text at 4000 chars). */
+function textSize(container: ContainerBuilder): number {
+  let total = 0;
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    const n = node as Record<string, unknown>;
+    if (typeof n.content === "string") total += n.content.length;
+    if (Array.isArray(n.components)) n.components.forEach(walk);
+    if (n.accessory) walk(n.accessory);
+  };
+  walk(container.toJSON());
+  return total;
+}
+
 function pct(n: number): string {
   return Number.isInteger(n) ? `${n}%` : `${n.toFixed(1)}%`;
 }
@@ -336,7 +355,7 @@ function addOverview(container: ContainerBuilder, char: CharacterData, lang: Lan
 
 // ── Page : Skills ───────────────────────────────────────────────────
 
-function addSkills(container: ContainerBuilder, char: CharacterData, weaponTypeKey: string, lang: Lang): void {
+function addSkills(container: ContainerBuilder, char: CharacterData, weaponTypeKey: string, lang: Lang, colored: boolean): void {
   const grouped = groupSkillsByWeapon(char.skills);
   const skills = grouped.get(weaponTypeKey) ?? [];
   const weaponLabel = skills[0]?.weaponType
@@ -362,7 +381,7 @@ function addSkills(container: ContainerBuilder, char: CharacterData, weaponTypeK
 
     const lines = [`**${sk.category} — ${sk.name}**`];
     if (meta.length > 0) lines.push(meta.join("  •  "));
-    if (sk.description) lines.push("```ansi\n" + colorize(sk.description) + "\n```"); // full, colored
+    if (sk.description) lines.push(describe(sk.description, colored));
     if (sk.buffs?.length) lines.push(sk.buffs.map((b) => `> 🔹 ${b.name}`).join("\n"));
 
     container.addSeparatorComponents(sep());
@@ -413,7 +432,7 @@ function addMastery(container: ContainerBuilder, mastery: CharacterMastery | und
 // Max costumes rendered as icon+text sections, to stay under Discord's 40-component cap.
 const COSTUME_LIMIT = 8;
 
-function addCostumes(container: ContainerBuilder, data: CharacterCostumes | undefined, lang: Lang): void {
+function addCostumes(container: ContainerBuilder, data: CharacterCostumes | undefined, lang: Lang, colored: boolean): void {
   // Only costumes that grant an engraving passive (skip cosmetic-only & default).
   const withPassive = data?.costumes.filter((c) => c.engravingPassives && c.engravingPassives.length > 0) ?? [];
 
@@ -441,10 +460,12 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
 
     for (const ep of c.engravingPassives!) {
       lines.push(`🔹 **${ep.name}**`);
-      const block = ep.levels
-        .map((lv) => `Lv.${lv.level}  ${colorize(lv.description)}`)
-        .join("\n\n");
-      lines.push("```ansi\n" + block + "\n```");
+      if (colored) {
+        const block = ep.levels.map((lv) => `Lv.${lv.level}  ${colorize(lv.description)}`).join("\n\n");
+        lines.push("```ansi\n" + block + "\n```");
+      } else {
+        for (const lv of ep.levels) lines.push(`-# Lv.${lv.level} · ${clean(lv.description)}`);
+      }
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
@@ -542,7 +563,7 @@ function buildLinkRow(state: CharacterState): ActionRowBuilder<ButtonBuilder> {
   );
 }
 
-function buildContainer(state: CharacterState, expired = false): ContainerBuilder {
+function buildContainer(state: CharacterState, expired = false, colored = true): ContainerBuilder {
   const char = getChar(state);
   const color = ELEMENT_COLORS[char.elementKey] ?? RARITY_COLORS[char.rarity] ?? 0xc9a84c;
   const container = new ContainerBuilder().setAccentColor(color);
@@ -552,9 +573,9 @@ function buildContainer(state: CharacterState, expired = false): ContainerBuilde
 
   switch (state.page) {
     case "overview": addOverview(container, char, state.lang); break;
-    case "skills": addSkills(container, char, state.activeWeapon, state.lang); break;
+    case "skills": addSkills(container, char, state.activeWeapon, state.lang, colored); break;
     case "mastery": addMastery(container, state.mastery[state.lang], state.activeWeapon, state.lang); break;
-    case "costumes": addCostumes(container, state.costumes[state.lang], state.lang); break;
+    case "costumes": addCostumes(container, state.costumes[state.lang], state.lang, colored); break;
     case "potential": addPotential(container, state.potential[state.lang], state.activeWeapon, state.lang); break;
   }
 
@@ -572,6 +593,12 @@ function buildContainer(state: CharacterState, expired = false): ContainerBuilde
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent("-# 7DS Origin · 7dsorigin.app"));
 
   return container;
+}
+
+// Build with colors; if the message exceeds Discord's 4000-char text cap, fall back to plain.
+function buildSafeContainer(state: CharacterState, expired = false): ContainerBuilder {
+  const colored = buildContainer(state, expired, true);
+  return textSize(colored) <= 3900 ? colored : buildContainer(state, expired, false);
 }
 
 const V2 = { flags: MessageFlags.IsComponentsV2 as const };
@@ -649,7 +676,7 @@ export async function handleCharacterCommand(
     activeWeapon: weaponTypes[0] ?? "",
   };
 
-  const response = await interaction.reply({ components: [buildContainer(state)], ...V2 });
+  const response = await interaction.reply({ components: [buildSafeContainer(state)], ...V2 });
   const collector = response.createMessageComponentCollector({ time: COLLECTOR_TIMEOUT });
 
   collector.on("collect", async (i) => {
@@ -679,14 +706,14 @@ export async function handleCharacterCommand(
     const wt = getWeaponTypes(getChar(state));
     if (!state.activeWeapon || !wt.includes(state.activeWeapon)) state.activeWeapon = wt[0] ?? "";
 
-    const payload = { components: [buildContainer(state)], ...V2 };
+    const payload = { components: [buildSafeContainer(state)], ...V2 };
     if (needFetch) await interaction.editReply(payload);
     else await i.update(payload);
   });
 
   collector.on("end", async () => {
     try {
-      await interaction.editReply({ components: [buildContainer(state, true)], ...V2 });
+      await interaction.editReply({ components: [buildSafeContainer(state, true)], ...V2 });
     } catch { /* message may have been deleted */ }
   });
 }
