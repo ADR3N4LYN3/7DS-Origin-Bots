@@ -90,12 +90,33 @@ function clean(text: string): string {
   return text.replace(/\[#[0-9A-Fa-f]{6}]/g, "").replace(/\[-]/g, "");
 }
 
-function fmt(n: number): string {
-  return n.toLocaleString("fr-FR");
-}
-
 function pct(n: number): string {
   return Number.isInteger(n) ? `${n}%` : `${n.toFixed(1)}%`;
+}
+
+/** Like fmt but with regular spaces so it aligns inside a monospace code block. */
+function fmtMono(n: number): string {
+  return n.toLocaleString("fr-FR").replace(/[  ]/g, " ");
+}
+
+/** Render two stat columns as an aligned monospace table (label left, value right-aligned). */
+function twoColTable(left: [string, string][], right: [string, string][]): string {
+  const lLabelW = Math.max(0, ...left.map(([l]) => l.length));
+  const lValW = Math.max(0, ...left.map(([, v]) => v.length));
+  const rLabelW = Math.max(0, ...right.map(([l]) => l.length));
+  const rValW = Math.max(0, ...right.map(([, v]) => v.length));
+  const leftBlockW = lLabelW + 2 + lValW;
+  const rows = Math.max(left.length, right.length);
+
+  const lines: string[] = [];
+  for (let i = 0; i < rows; i++) {
+    let line = left[i]
+      ? `${left[i][0].padEnd(lLabelW)}  ${left[i][1].padStart(lValW)}`
+      : " ".repeat(leftBlockW);
+    if (right[i]) line += `     ${right[i][0].padEnd(rLabelW)}  ${right[i][1].padStart(rValW)}`;
+    lines.push(line.replace(/\s+$/, ""));
+  }
+  return lines.join("\n");
 }
 
 function parseEmoji(key: string): { id: string; name: string } | undefined {
@@ -205,23 +226,22 @@ function addOverview(container: ContainerBuilder, char: CharacterData, lang: Lan
     ? `### 📊 ${L(lang, "Statistiques", "Stats")} · ${L(lang, "Niv.", "Lv.")}${char.statsLevel}`
     : `### 📊 ${L(lang, "Statistiques", "Stats")}`;
 
-  const primary = [
-    `❤️ ${L(lang, "PV", "HP")} **${fmt(s.hp)}**`,
-    `⚔️ ATK **${fmt(s.atk)}**`,
-    `🛡️ DEF **${fmt(s.def)}**`,
-    `🏃 ${L(lang, "Vitesse", "Speed")} **${fmt(s.spd)}**`,
-  ].join("  •  ");
+  const left: [string, string][] = [
+    [L(lang, "PV", "HP"), fmtMono(s.hp)],
+    ["ATK", fmtMono(s.atk)],
+    ["DEF", fmtMono(s.def)],
+    [L(lang, "Vitesse", "Speed"), fmtMono(s.spd)],
+  ];
+  const right: [string, string][] = [];
+  if (s.critRate) right.push(["Crit", pct(s.critRate)]);
+  if (s.critDamage) right.push([L(lang, "Dmg Crit", "Crit Dmg"), pct(s.critDamage)]);
+  if (s.accuracy) right.push([L(lang, "Précision", "Accuracy"), pct(s.accuracy)]);
+  if (s.block) right.push([L(lang, "Bloc", "Block"), pct(s.block)]);
+  if (s.critResist) right.push([L(lang, "Rés. Crit", "Crit Res"), pct(s.critResist)]);
 
-  const secondary: string[] = [];
-  if (s.critRate) secondary.push(`🎯 Crit **${pct(s.critRate)}**`);
-  if (s.critDamage) secondary.push(`💥 ${L(lang, "Dmg Crit", "Crit Dmg")} **${pct(s.critDamage)}**`);
-  if (s.accuracy) secondary.push(`✨ ${L(lang, "Précision", "Accuracy")} **${pct(s.accuracy)}**`);
-  if (s.block) secondary.push(`🧱 ${L(lang, "Bloc", "Block")} **${pct(s.block)}**`);
-  if (s.critResist) secondary.push(`🪨 ${L(lang, "Rés. Crit", "Crit Res")} **${pct(s.critResist)}**`);
-
-  const statLines = [statsTitle, primary];
-  if (secondary.length > 0) statLines.push(secondary.join("  •  "));
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(statLines.join("\n")));
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`${statsTitle}\n\`\`\`\n${twoColTable(left, right)}\n\`\`\``),
+  );
 
   // Compatible weapons.
   if (char.weaponSlots.length > 0) {
