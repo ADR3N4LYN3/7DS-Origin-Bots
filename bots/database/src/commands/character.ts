@@ -123,9 +123,14 @@ function weaponEmoji(key: string): string {
   return (name && getEmoji(name)) || "⚔️";
 }
 
-function rarityEmoji(rarity: string): string {
+/** CDN image URL of the rarity badge emoji (used as the embed author icon, larger than inline). */
+function rarityBadgeUrl(rarity: string): string | null {
   const name = RARITY_EMOJI_NAMES[rarity];
-  return (name && getEmoji(name)) || "";
+  if (!name) return null;
+  const str = getEmoji(name);
+  if (!str) return null;
+  const m = str.match(/<a?:\w+:(\d+)>/);
+  return m ? `https://cdn.discordapp.com/emojis/${m[1]}.png?size=96` : null;
 }
 
 function groupSkillsByWeapon(skills: CharacterSkill[]): Map<string, CharacterSkill[]> {
@@ -160,11 +165,7 @@ function L(lang: Lang, fr: string, en: string): string {
 function baseEmbed(char: CharacterData): EmbedBuilder {
   const color = ELEMENT_COLORS[char.elementKey] ?? RARITY_COLORS[char.rarity] ?? 0xc9a84c;
 
-  const header = [
-    `${elemEmoji(char.elementKey)} **${char.element}**`,
-    char.role,
-    `${rarityEmoji(char.rarity)} **${char.rarity}**`.trim(),
-  ].join("  •  ");
+  const header = `${elemEmoji(char.elementKey)} **${char.element}**  •  ${char.role}`;
 
   const embed = new EmbedBuilder()
     .setColor(color)
@@ -174,8 +175,12 @@ function baseEmbed(char: CharacterData): EmbedBuilder {
     .setThumbnail(char.imageUrl || null)
     .setFooter({ text: "7DS Origin · 7dsorigin.app" });
 
-  // EN name as a discreet sub-line above the title.
-  if (char.nameEn && char.nameEn !== char.name) {
+  // Rarity shown as the author badge icon (bigger than inline, no redundant "SSR" text).
+  const badge = rarityBadgeUrl(char.rarity);
+  const authorName = char.nameEn && char.nameEn !== char.name ? char.nameEn : char.name;
+  if (badge) {
+    embed.setAuthor({ name: authorName, iconURL: badge });
+  } else if (char.nameEn && char.nameEn !== char.name) {
     embed.setAuthor({ name: char.nameEn });
   }
 

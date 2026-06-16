@@ -92,9 +92,14 @@ function clampField(value: string): string {
   return value.slice(0, FIELD_MAX - 1).replace(/\n[^\n]*$/, "") + "…";
 }
 
-function rarityEmoji(rarity: string): string {
+/** CDN image URL of the rarity badge emoji (used as the embed author icon, larger than inline). */
+function rarityBadgeUrl(rarity: string): string | null {
   const name = RARITY_EMOJI_NAMES[rarity];
-  return (name && getEmoji(name)) || "";
+  if (!name) return null;
+  const str = getEmoji(name);
+  if (!str) return null;
+  const m = str.match(/<a?:\w+:(\d+)>/);
+  return m ? `https://cdn.discordapp.com/emojis/${m[1]}.png?size=96` : null;
 }
 
 function petTypeEmoji(key: string): string {
@@ -144,10 +149,7 @@ function L(lang: Lang, fr: string, en: string): string {
 function baseEmbed(pet: PetData): EmbedBuilder {
   const color = RARITY_COLORS[pet.rarity] ?? 0xc9a84c;
 
-  const header = [
-    `${petTypeEmoji(pet.petTypeKey)} **${pet.petType}**`,
-    `${rarityEmoji(pet.rarity)} **${pet.rarity}**`.trim(),
-  ].join("  •  ");
+  const header = `${petTypeEmoji(pet.petTypeKey)} **${pet.petType}**`;
 
   const embed = new EmbedBuilder()
     .setColor(color)
@@ -157,7 +159,12 @@ function baseEmbed(pet: PetData): EmbedBuilder {
     .setThumbnail(pet.imageUrl || null)
     .setFooter({ text: "7DS Origin · 7dsorigin.app" });
 
-  if (pet.nameEn && pet.nameEn !== pet.name) {
+  // Rarity shown as the author badge icon (bigger than inline, no redundant text).
+  const badge = rarityBadgeUrl(pet.rarity);
+  const authorName = pet.nameEn && pet.nameEn !== pet.name ? pet.nameEn : pet.name;
+  if (badge) {
+    embed.setAuthor({ name: authorName, iconURL: badge });
+  } else if (pet.nameEn && pet.nameEn !== pet.name) {
     embed.setAuthor({ name: pet.nameEn });
   }
 
