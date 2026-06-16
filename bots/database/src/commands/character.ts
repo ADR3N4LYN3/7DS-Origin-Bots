@@ -130,6 +130,9 @@ function textSize(container: ContainerBuilder): number {
     if (!node || typeof node !== "object") return;
     const n = node as Record<string, unknown>;
     if (typeof n.content === "string") total += n.content.length;
+    if (typeof n.placeholder === "string") total += n.placeholder.length;
+    if (typeof n.label === "string") total += n.label.length;
+    if (Array.isArray(n.options)) n.options.forEach(walk);
     if (Array.isArray(n.components)) n.components.forEach(walk);
     if (n.accessory) walk(n.accessory);
   };
