@@ -96,6 +96,28 @@ function clean(text: string): string {
   return text.replace(/\[#[0-9A-Fa-f]{6}]/g, "").replace(/\[-]/g, "");
 }
 
+/** Map a hex color (site's [#hex]…[-] markup) to the nearest ANSI foreground code. */
+function ansiCode(hex: string): number {
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const max = Math.max(r, g, b);
+  if (max < 70) return 30;                          // dark → gray
+  if (g >= r && g >= b && r < g * 0.85) return 32;  // green (values)
+  if (b >= r && b >= g && b > 110) return 34;       // blue (stats)
+  if (r >= g && r >= b) return g > 120 ? 33 : 31;   // yellow / red
+  if (g > 120 && b > 120) return 36;                // cyan
+  return 37;                                        // white
+}
+
+/** Convert the site's [#hex]text[-] markup into ANSI escapes for a ```ansi``` block. */
+function colorize(text: string): string {
+  return text
+    .replace(/\[#([0-9A-Fa-f]{6})\]([\s\S]*?)\[-\]/g, (_m, hex: string, inner: string) => `[1;${ansiCode(hex)}m${inner}[0m`)
+    .replace(/\[#[0-9A-Fa-f]{6}\]/g, "")
+    .replace(/\[-\]/g, "");
+}
+
 function pct(n: number): string {
   return Number.isInteger(n) ? `${n}%` : `${n.toFixed(1)}%`;
 }
@@ -412,10 +434,12 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
     const lines = [`**${badge ? `${badge} ` : ""}${c.name}**`];
     if (c.effectDesc) lines.push(`-# ${clean(c.effectDesc)}`);
 
-    lines.push(`**${L(lang, "Passifs gravés", "Engraving passives")}**`);
     for (const ep of c.engravingPassives!) {
       lines.push(`🔹 **${ep.name}**`);
-      for (const lv of ep.levels) lines.push(`-# Lv.${lv.level} · ${clean(lv.description)}`);
+      const block = ep.levels
+        .map((lv) => `Lv.${lv.level}  ${colorize(lv.description)}`)
+        .join("\n\n");
+      lines.push("```ansi\n" + block + "\n```");
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
