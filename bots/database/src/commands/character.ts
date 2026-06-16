@@ -387,14 +387,17 @@ function addMastery(container: ContainerBuilder, mastery: CharacterMastery | und
 const COSTUME_LIMIT = 8;
 
 function addCostumes(container: ContainerBuilder, data: CharacterCostumes | undefined, lang: Lang): void {
-  if (!data || data.costumes.length === 0) {
+  // Only costumes that grant an engraving passive (skip cosmetic-only & default).
+  const withPassive = data?.costumes.filter((c) => c.engravingPassives && c.engravingPassives.length > 0) ?? [];
+
+  if (withPassive.length === 0) {
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(L(lang, "*Aucun costume.*", "*No costume.*")),
+      new TextDisplayBuilder().setContent(L(lang, "*Aucun costume avec passif.*", "*No costume with a passive.*")),
     );
     return;
   }
 
-  data.costumes.slice(0, COSTUME_LIMIT).forEach((c, idx) => {
+  withPassive.slice(0, COSTUME_LIMIT).forEach((c, idx) => {
     if (idx > 0) container.addSeparatorComponents(sep(SeparatorSpacingSize.Large));
 
     // Big costume art on top…
@@ -406,28 +409,24 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
 
     // …then its name + passive right below.
     const badge = rarityBadge(c.rarity);
-    const lines = [`**${badge ? `${badge} ` : ""}${c.name}**${c.isDefault ? ` · ${L(lang, "défaut", "default")}` : ""}`];
+    const lines = [`**${badge ? `${badge} ` : ""}${c.name}**`];
     if (c.effectDesc) lines.push(`-# ${clean(c.effectDesc)}`);
 
-    if (c.engravingPassives?.length) {
-      lines.push(`**${L(lang, "Passifs gravés", "Engraving passives")}**`);
-      for (const ep of c.engravingPassives) {
-        lines.push(`🔹 **${ep.name}**`);
-        for (const lv of ep.levels) lines.push(`-# Lv.${lv.level} · ${clean(lv.description)}`);
-      }
-    } else if (c.bindingMaterials === null && c.engravingPassives === null) {
-      lines.push(`-# ${L(lang, "*Cosmétique uniquement*", "*Cosmetic only*")}`);
+    lines.push(`**${L(lang, "Passifs gravés", "Engraving passives")}**`);
+    for (const ep of c.engravingPassives!) {
+      lines.push(`🔹 **${ep.name}**`);
+      for (const lv of ep.levels) lines.push(`-# Lv.${lv.level} · ${clean(lv.description)}`);
     }
 
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
   });
 
-  if (data.costumes.length > COSTUME_LIMIT) {
-    const more = data.costumes.length - COSTUME_LIMIT;
+  if (withPassive.length > COSTUME_LIMIT) {
+    const more = withPassive.length - COSTUME_LIMIT;
     container.addSeparatorComponents(sep());
     container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `-# +${more} ${L(lang, "autres costumes — voir la fiche complète", "more costumes — see full page")}`,
+        `-# +${more} ${L(lang, "autres costumes avec passif — voir la fiche complète", "more costumes with a passive — see full page")}`,
       ),
     );
   }
