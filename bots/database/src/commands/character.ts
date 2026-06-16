@@ -7,6 +7,8 @@ import {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
+  ApplicationIntegrationType,
+  InteractionContextType,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
 import type { CharacterData, CharacterSkill } from "../api/types.js";
@@ -418,6 +420,8 @@ export function buildCharacterCommand() {
   return new SlashCommandBuilder()
     .setName("character")
     .setDescription("Rechercher un personnage dans la base de données")
+    .setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
+    .setContexts(InteractionContextType.Guild)
     .addStringOption((opt) =>
       opt
         .setName("name")

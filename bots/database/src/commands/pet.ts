@@ -7,6 +7,8 @@ import {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
+  ApplicationIntegrationType,
+  InteractionContextType,
 } from "discord.js";
 import type { ApiClient } from "../api/client.js";
 import type { PetData } from "../api/types.js";
@@ -350,6 +352,8 @@ export function buildPetCommand() {
   return new SlashCommandBuilder()
     .setName("pet")
     .setDescription("Rechercher un familier/monture dans la base de données")
+    .setIntegrationTypes(ApplicationIntegrationType.GuildInstall)
+    .setContexts(InteractionContextType.Guild)
     .addStringOption((opt) =>
       opt
         .setName("name")
