@@ -10,6 +10,9 @@ import {
   SeparatorSpacingSize,
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
+  MessageFlags,
+  type Message,
+  type TextChannel,
 } from "discord.js";
 import type { RolePanelCategory } from "../config/roles.config.js";
 
@@ -118,4 +121,23 @@ export function buildRolePanelContainer(opts: RolePanelOptions): ContainerBuilde
   }
 
   return container;
+}
+
+// Poste un nouveau panneau, ou réédite un message existant si messageId est fourni.
+// Renvoie le message, ou null si l'édition a échoué (ID introuvable / autre auteur).
+export async function deliverPanel(
+  channel: TextChannel,
+  messageId: string | undefined,
+  container: ContainerBuilder,
+  opts: { react?: string } = {},
+): Promise<Message | null> {
+  if (messageId) {
+    const target = await channel.messages.fetch(messageId).catch(() => null);
+    if (!target) return null;
+    return target.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  }
+
+  const sent = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  if (opts.react) await sent.react(opts.react).catch(() => {});
+  return sent;
 }

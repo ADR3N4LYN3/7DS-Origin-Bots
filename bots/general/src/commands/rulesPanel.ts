@@ -9,10 +9,10 @@ import {
   SeparatorSpacingSize,
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
-  MessageFlags,
   type TextChannel,
 } from "discord.js";
 import { hasAdminRole } from "../utils.js";
+import { deliverPanel } from "../panels/rolePanel.js";
 import {
   RULES_TITLE,
   RULES_INTRO,
@@ -38,6 +38,9 @@ export function buildRulesPanelCommand() {
     .setDescription("Poster le règlement stylé depuis la config (admin)")
     .addChannelOption((opt) =>
       opt.setName("channel").setDescription("Channel cible (par défaut : actuel)").setRequired(false),
+    )
+    .addStringOption((opt) =>
+      opt.setName("message_id").setDescription("ID d'un règlement existant à mettre à jour (au lieu d'en poster un nouveau)").setRequired(false),
     );
 }
 
@@ -100,10 +103,18 @@ export async function handleRulesPanelCommand(
     );
   }
 
+  const messageId = interaction.options.getString("message_id") ?? undefined;
+
   try {
-    const sent = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    await sent.react("✅").catch(() => {}); // réaction symbolique de validation
-    await interaction.reply({ content: `✅ Règlement posté dans <#${channel.id}>.`, flags: 64 });
+    const msg = await deliverPanel(channel, messageId, container, { react: "✅" });
+    if (!msg) {
+      await interaction.reply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel).", flags: 64 });
+      return;
+    }
+    await interaction.reply({
+      content: messageId ? "✅ Règlement mis à jour." : `✅ Règlement posté dans <#${channel.id}>.`,
+      flags: 64,
+    });
   } catch (err) {
     console.error("Failed to post rules panel:", err);
     await interaction.reply({ content: "❌ Erreur lors de l'envoi du règlement.", flags: 64 });

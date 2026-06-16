@@ -1,12 +1,11 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  MessageFlags,
   type TextChannel,
 } from "discord.js";
 import { hasAdminRole } from "../utils.js";
 import { ROLE_PANEL_TITLE, ROLE_PANEL_CATEGORIES } from "../config/roles.config.js";
-import { buildRolePanelContainer, countButtonRows } from "../panels/rolePanel.js";
+import { buildRolePanelContainer, countButtonRows, deliverPanel } from "../panels/rolePanel.js";
 
 export function buildRolesPanelCommand() {
   return new SlashCommandBuilder()
@@ -14,6 +13,9 @@ export function buildRolesPanelCommand() {
     .setDescription("Poster le panneau de rôles auto-attribuables depuis la config (admin)")
     .addChannelOption((opt) =>
       opt.setName("channel").setDescription("Channel cible (par défaut : actuel)").setRequired(false),
+    )
+    .addStringOption((opt) =>
+      opt.setName("message_id").setDescription("ID d'un panneau existant à mettre à jour (au lieu d'en poster un nouveau)").setRequired(false),
     );
 }
 
@@ -51,9 +53,18 @@ export async function handleRolesPanelCommand(
     bannerUrl,
   });
 
+  const messageId = interaction.options.getString("message_id") ?? undefined;
+
   try {
-    await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    await interaction.reply({ content: `✅ Panneau de rôles posté dans <#${channel.id}>.`, flags: 64 });
+    const msg = await deliverPanel(channel, messageId, container);
+    if (!msg) {
+      await interaction.reply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel).", flags: 64 });
+      return;
+    }
+    await interaction.reply({
+      content: messageId ? "✅ Panneau de rôles mis à jour." : `✅ Panneau de rôles posté dans <#${channel.id}>.`,
+      flags: 64,
+    });
   } catch (err) {
     console.error("Failed to post roles panel:", err);
     await interaction.reply({ content: "❌ Erreur lors de l'envoi du panneau de rôles.", flags: 64 });

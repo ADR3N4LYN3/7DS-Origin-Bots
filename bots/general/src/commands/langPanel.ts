@@ -1,12 +1,11 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
-  MessageFlags,
   type TextChannel,
 } from "discord.js";
 import { hasAdminRole } from "../utils.js";
 import { LANG_PANEL_TITLE, LANG_PANEL_CATEGORIES } from "../config/lang.config.js";
-import { buildRolePanelContainer, countButtonRows } from "../panels/rolePanel.js";
+import { buildRolePanelContainer, countButtonRows, deliverPanel } from "../panels/rolePanel.js";
 
 export function buildLangPanelCommand() {
   return new SlashCommandBuilder()
@@ -14,6 +13,9 @@ export function buildLangPanelCommand() {
     .setDescription("Poster le panneau des rôles de langue depuis la config (admin)")
     .addChannelOption((opt) =>
       opt.setName("channel").setDescription("Channel cible (par défaut : actuel)").setRequired(false),
+    )
+    .addStringOption((opt) =>
+      opt.setName("message_id").setDescription("ID d'un panneau existant à mettre à jour (au lieu d'en poster un nouveau)").setRequired(false),
     );
 }
 
@@ -51,9 +53,18 @@ export async function handleLangPanelCommand(
     bannerUrl,
   });
 
+  const messageId = interaction.options.getString("message_id") ?? undefined;
+
   try {
-    await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
-    await interaction.reply({ content: `✅ Panneau des langues posté dans <#${channel.id}>.`, flags: 64 });
+    const msg = await deliverPanel(channel, messageId, container);
+    if (!msg) {
+      await interaction.reply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel).", flags: 64 });
+      return;
+    }
+    await interaction.reply({
+      content: messageId ? "✅ Panneau des langues mis à jour." : `✅ Panneau des langues posté dans <#${channel.id}>.`,
+      flags: 64,
+    });
   } catch (err) {
     console.error("Failed to post lang panel:", err);
     await interaction.reply({ content: "❌ Erreur lors de l'envoi du panneau des langues.", flags: 64 });
