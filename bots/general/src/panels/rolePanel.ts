@@ -11,6 +11,7 @@ import {
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
   MessageFlags,
+  type AttachmentBuilder,
   type Message,
   type TextChannel,
 } from "discord.js";
@@ -129,15 +130,17 @@ export async function deliverPanel(
   channel: TextChannel,
   messageId: string | undefined,
   container: ContainerBuilder,
-  opts: { react?: string } = {},
+  opts: { react?: string; files?: AttachmentBuilder[] } = {},
 ): Promise<Message | null> {
+  const files = opts.files ?? [];
+
   if (messageId) {
     const target = await channel.messages.fetch(messageId).catch(() => null);
     if (!target) return null;
-    return target.edit({ components: [container], flags: MessageFlags.IsComponentsV2 });
+    return target.edit({ components: [container], files, flags: MessageFlags.IsComponentsV2 });
   }
 
-  const sent = await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2 });
+  const sent = await channel.send({ components: [container], files, flags: MessageFlags.IsComponentsV2 });
   if (opts.react) await sent.react(opts.react).catch(() => {});
   return sent;
 }

@@ -43,7 +43,6 @@ const CHANNEL_WELCOME = process.env.CHANNEL_WELCOME!;
 const CHANNEL_RULES = process.env.CHANNEL_RULES || undefined;
 const CHANNEL_ROLES = process.env.CHANNEL_ROLES || undefined;
 const DISCORD_ADMIN_ROLE_ID = process.env.DISCORD_ADMIN_ROLE_ID!;
-const WELCOME_BANNER_URL = process.env.WELCOME_BANNER_URL || undefined;
 const CHANNEL_LOGS = process.env.CHANNEL_LOGS || undefined;
 
 // ── Discord client ───────────────────────────────────────────────────
@@ -81,7 +80,6 @@ const welcomeConfig = {
   welcomeChannelId: CHANNEL_WELCOME,
   rulesChannelId: CHANNEL_RULES,
   rolesChannelId: CHANNEL_ROLES,
-  bannerUrl: WELCOME_BANNER_URL,
 };
 
 client.on("guildMemberAdd", (member) => {
@@ -135,9 +133,9 @@ const COMMAND_HANDLERS: Record<string, (interaction: ChatInputCommandInteraction
   clear: (i) => handleClearCommand(i, DISCORD_ADMIN_ROLE_ID),
   sondage: (i) => handleSondageCommand(i, DISCORD_ADMIN_ROLE_ID),
   reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
-  "roles-panel": (i) => handleRolesPanelCommand(i, DISCORD_ADMIN_ROLE_ID, WELCOME_BANNER_URL),
-  "rules-panel": (i) => handleRulesPanelCommand(i, DISCORD_ADMIN_ROLE_ID, WELCOME_BANNER_URL),
-  "lang-panel": (i) => handleLangPanelCommand(i, DISCORD_ADMIN_ROLE_ID, WELCOME_BANNER_URL),
+  "roles-panel": (i) => handleRolesPanelCommand(i, DISCORD_ADMIN_ROLE_ID),
+  "rules-panel": (i) => handleRulesPanelCommand(i, DISCORD_ADMIN_ROLE_ID),
+  "lang-panel": (i) => handleLangPanelCommand(i, DISCORD_ADMIN_ROLE_ID),
   repost: (i) => handleRepostCommand(i, DISCORD_ADMIN_ROLE_ID),
   testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, welcomeConfig),
   giveaway: (i) => handleGiveawayCommand(i, DISCORD_ADMIN_ROLE_ID, client),

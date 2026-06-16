@@ -1,10 +1,10 @@
 import { EmbedBuilder, type GuildMember, type TextChannel } from "discord.js";
+import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
 export interface WelcomeConfig {
   welcomeChannelId: string;
   rulesChannelId?: string;
   rolesChannelId?: string;
-  bannerUrl?: string;
 }
 
 export async function handleGuildMemberAdd(member: GuildMember, config: WelcomeConfig) {
@@ -45,12 +45,13 @@ export async function handleGuildMemberAdd(member: GuildMember, config: WelcomeC
     .setFooter({ text: `7DS Origin • Membre / Member #${count}` })
     .setTimestamp();
 
-  if (config.bannerUrl) {
-    embed.setImage(config.bannerUrl);
+  const banner = bannerFile();
+  if (banner) {
+    embed.setImage(BANNER_ATTACHMENT_URL);
   }
 
   try {
-    await channel.send({ embeds: [embed] });
+    await channel.send({ embeds: [embed], files: banner ? [banner] : [] });
   } catch (err) {
     console.error("Failed to send welcome message:", err);
   }

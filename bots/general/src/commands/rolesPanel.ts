@@ -6,6 +6,7 @@ import {
 import { hasAdminRole } from "../utils.js";
 import { ROLE_PANEL_TITLE, ROLE_PANEL_CATEGORIES } from "../config/roles.config.js";
 import { buildRolePanelContainer, countButtonRows, deliverPanel } from "../panels/rolePanel.js";
+import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
 export function buildRolesPanelCommand() {
   return new SlashCommandBuilder()
@@ -22,7 +23,6 @@ export function buildRolesPanelCommand() {
 export async function handleRolesPanelCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
-  bannerUrl?: string,
 ) {
   if (!hasAdminRole(interaction, adminRoleId)) {
     await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
@@ -42,6 +42,8 @@ export async function handleRolesPanelCommand(
   const iconUrl = interaction.guild?.iconURL({ size: 256 })
     ?? interaction.client.user?.displayAvatarURL({ size: 256 });
 
+  const banner = bannerFile();
+
   const container = buildRolePanelContainer({
     titleEmoji: "🎭",
     titleFr: ROLE_PANEL_TITLE.fr,
@@ -50,13 +52,15 @@ export async function handleRolesPanelCommand(
     introEn: "Customize your server experience.",
     categories: ROLE_PANEL_CATEGORIES,
     iconUrl,
-    bannerUrl,
+    bannerUrl: banner ? BANNER_ATTACHMENT_URL : undefined,
   });
 
   const messageId = interaction.options.getString("message_id") ?? undefined;
 
   try {
-    const msg = await deliverPanel(channel, messageId, container);
+    const msg = await deliverPanel(channel, messageId, container, {
+      files: banner ? [banner] : [],
+    });
     if (!msg) {
       await interaction.reply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel).", flags: 64 });
       return;

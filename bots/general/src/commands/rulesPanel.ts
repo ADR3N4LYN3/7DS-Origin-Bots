@@ -13,6 +13,7 @@ import {
 } from "discord.js";
 import { hasAdminRole } from "../utils.js";
 import { deliverPanel } from "../panels/rolePanel.js";
+import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 import {
   RULES_TITLE,
   RULES_INTRO,
@@ -47,7 +48,6 @@ export function buildRulesPanelCommand() {
 export async function handleRulesPanelCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
-  bannerUrl?: string,
 ) {
   if (!hasAdminRole(interaction, adminRoleId)) {
     await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
@@ -58,6 +58,8 @@ export async function handleRulesPanelCommand(
 
   const iconUrl = interaction.guild?.iconURL({ size: 256 })
     ?? interaction.client.user?.displayAvatarURL({ size: 256 });
+
+  const banner = bannerFile();
 
   const container = new ContainerBuilder().setAccentColor(0xc9a84c);
 
@@ -97,16 +99,19 @@ export async function handleRulesPanelCommand(
     ),
   );
 
-  if (bannerUrl) {
+  if (banner) {
     container.addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(bannerUrl)),
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(BANNER_ATTACHMENT_URL)),
     );
   }
 
   const messageId = interaction.options.getString("message_id") ?? undefined;
 
   try {
-    const msg = await deliverPanel(channel, messageId, container, { react: "✅" });
+    const msg = await deliverPanel(channel, messageId, container, {
+      react: "✅",
+      files: banner ? [banner] : [],
+    });
     if (!msg) {
       await interaction.reply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel).", flags: 64 });
       return;

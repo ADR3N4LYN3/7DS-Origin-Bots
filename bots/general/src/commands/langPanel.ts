@@ -6,6 +6,7 @@ import {
 import { hasAdminRole } from "../utils.js";
 import { LANG_PANEL_TITLE, LANG_PANEL_CATEGORIES } from "../config/lang.config.js";
 import { buildRolePanelContainer, countButtonRows, deliverPanel } from "../panels/rolePanel.js";
+import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
 export function buildLangPanelCommand() {
   return new SlashCommandBuilder()
@@ -22,7 +23,6 @@ export function buildLangPanelCommand() {
 export async function handleLangPanelCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
-  bannerUrl?: string,
 ) {
   if (!hasAdminRole(interaction, adminRoleId)) {
     await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
@@ -42,6 +42,8 @@ export async function handleLangPanelCommand(
   const iconUrl = interaction.guild?.iconURL({ size: 256 })
     ?? interaction.client.user?.displayAvatarURL({ size: 256 });
 
+  const banner = bannerFile();
+
   const container = buildRolePanelContainer({
     titleEmoji: "🌍",
     titleFr: LANG_PANEL_TITLE.fr,
@@ -50,13 +52,15 @@ export async function handleLangPanelCommand(
     introEn: "Select the language(s) you speak.",
     categories: LANG_PANEL_CATEGORIES,
     iconUrl,
-    bannerUrl,
+    bannerUrl: banner ? BANNER_ATTACHMENT_URL : undefined,
   });
 
   const messageId = interaction.options.getString("message_id") ?? undefined;
 
   try {
-    const msg = await deliverPanel(channel, messageId, container);
+    const msg = await deliverPanel(channel, messageId, container, {
+      files: banner ? [banner] : [],
+    });
     if (!msg) {
       await interaction.reply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel).", flags: 64 });
       return;
