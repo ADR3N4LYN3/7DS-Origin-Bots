@@ -422,16 +422,9 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
   withPassive.slice(0, COSTUME_LIMIT).forEach((c, idx) => {
     if (idx > 0) container.addSeparatorComponents(sep(SeparatorSpacingSize.Large));
 
-    // Big costume art on top…
-    if (c.iconUrl) {
-      container.addMediaGalleryComponents(
-        new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(c.iconUrl).setDescription(c.name)),
-      );
-    }
-
-    // …then its name + passive right below.
+    // Name as an H2 (bigger rarity badge), effect as subtext, then the colored passive blocks.
     const badge = rarityBadge(c.rarity);
-    const lines = [`**${badge ? `${badge} ` : ""}${c.name}**`];
+    const lines = [`## ${badge ? `${badge} ` : ""}${c.name}`];
     if (c.effectDesc) lines.push(`-# ${clean(c.effectDesc)}`);
 
     for (const ep of c.engravingPassives!) {
@@ -442,7 +435,16 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
       lines.push("```ansi\n" + block + "\n```");
     }
 
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
+    const text = new TextDisplayBuilder().setContent(lines.join("\n"));
+
+    // Costume art as a small thumbnail (right of the text) instead of a full-width image.
+    if (c.iconUrl) {
+      container.addSectionComponents(
+        new SectionBuilder().addTextDisplayComponents(text).setThumbnailAccessory(new ThumbnailBuilder().setURL(c.iconUrl)),
+      );
+    } else {
+      container.addTextDisplayComponents(text);
+    }
   });
 
   if (withPassive.length > COSTUME_LIMIT) {
