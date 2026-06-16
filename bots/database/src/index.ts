@@ -21,7 +21,7 @@ process.on("unhandledRejection", (err) => {
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN!;
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
-const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID!;
+const DISCORD_GUILD_ID = process.env.DISCORD_GUILD_ID || ""; // empty → register globally (multi-server)
 const API_BASE_URL = process.env.API_BASE_URL ?? "https://7dsorigin.app/api/bot";
 const BOT_API_KEY = process.env.BOT_API_KEY!;
 
@@ -75,11 +75,17 @@ async function registerCommands() {
     buildPetCommand(),
   ].map((c) => c.toJSON());
 
-  await rest.put(Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID), {
-    body: commands,
-  });
-
-  console.log("Slash commands registered");
+  if (DISCORD_GUILD_ID) {
+    // Guild scope: instant registration on a single server (dev / private).
+    await rest.put(Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID), {
+      body: commands,
+    });
+    console.log(`Slash commands registered (guild ${DISCORD_GUILD_ID})`);
+  } else {
+    // Global scope: available on every server the bot joins (multi-server).
+    await rest.put(Routes.applicationCommands(DISCORD_CLIENT_ID), { body: commands });
+    console.log("Slash commands registered (global)");
+  }
 }
 
 // ── Bootstrap ────────────────────────────────────────────────────────
