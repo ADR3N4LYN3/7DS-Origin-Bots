@@ -395,8 +395,16 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
   }
 
   data.costumes.slice(0, COSTUME_LIMIT).forEach((c, idx) => {
-    if (idx > 0) container.addSeparatorComponents(sep());
+    if (idx > 0) container.addSeparatorComponents(sep(SeparatorSpacingSize.Large));
 
+    // Big costume art on top…
+    if (c.iconUrl) {
+      container.addMediaGalleryComponents(
+        new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(c.iconUrl).setDescription(c.name)),
+      );
+    }
+
+    // …then its name + passive right below.
     const badge = rarityBadge(c.rarity);
     const lines = [`**${badge ? `${badge} ` : ""}${c.name}**${c.isDefault ? ` · ${L(lang, "défaut", "default")}` : ""}`];
     if (c.effectDesc) lines.push(`-# ${clean(c.effectDesc)}`);
@@ -411,16 +419,7 @@ function addCostumes(container: ContainerBuilder, data: CharacterCostumes | unde
       lines.push(`-# ${L(lang, "*Cosmétique uniquement*", "*Cosmetic only*")}`);
     }
 
-    const text = new TextDisplayBuilder().setContent(lines.join("\n"));
-
-    // Icon glued to its own costume via a Section thumbnail accessory.
-    if (c.iconUrl) {
-      container.addSectionComponents(
-        new SectionBuilder().addTextDisplayComponents(text).setThumbnailAccessory(new ThumbnailBuilder().setURL(c.iconUrl)),
-      );
-    } else {
-      container.addTextDisplayComponents(text);
-    }
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
   });
 
   if (data.costumes.length > COSTUME_LIMIT) {
