@@ -362,7 +362,7 @@ function addSkills(container: ContainerBuilder, char: CharacterData, weaponTypeK
 
     const lines = [`**${sk.category} — ${sk.name}**`];
     if (meta.length > 0) lines.push(meta.join("  •  "));
-    if (sk.description) lines.push(clean(sk.description)); // full description, untruncated
+    if (sk.description) lines.push("```ansi\n" + colorize(sk.description) + "\n```"); // full, colored
     if (sk.buffs?.length) lines.push(sk.buffs.map((b) => `> 🔹 ${b.name}`).join("\n"));
 
     container.addSeparatorComponents(sep());
