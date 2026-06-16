@@ -10,11 +10,10 @@ import {
 } from "discord.js";
 import { buildClearCommand, handleClearCommand } from "./commands/clear.js";
 import { buildSondageCommand, handleSondageCommand } from "./commands/sondage.js";
-import { buildReactionRoleCommand, handleReactionRoleCommand, handleRoleButtonClick } from "./commands/reactionrole.js";
 import { buildRolesPanelCommand, handleRolesPanelCommand } from "./commands/rolesPanel.js";
 import { buildRulesPanelCommand, handleRulesPanelCommand } from "./commands/rulesPanel.js";
 import { buildLangPanelCommand, handleLangPanelCommand } from "./commands/langPanel.js";
-import { buildRepostCommand, handleRepostCommand } from "./commands/repost.js";
+import { handleRoleButtonClick } from "./panels/rolePanel.js";
 import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/testwelcome.js";
 import { buildGiveawayCommand, handleGiveawayCommand } from "./commands/giveaway.js";
 import { restoreGiveaways } from "./giveaways/scheduler.js";
@@ -132,11 +131,9 @@ client.on("interactionCreate", async (interaction) => {
 const COMMAND_HANDLERS: Record<string, (interaction: ChatInputCommandInteraction) => Promise<void>> = {
   clear: (i) => handleClearCommand(i, DISCORD_ADMIN_ROLE_ID),
   sondage: (i) => handleSondageCommand(i, DISCORD_ADMIN_ROLE_ID),
-  reactionrole: (i) => handleReactionRoleCommand(i, DISCORD_ADMIN_ROLE_ID),
   "roles-panel": (i) => handleRolesPanelCommand(i, DISCORD_ADMIN_ROLE_ID),
   "rules-panel": (i) => handleRulesPanelCommand(i, DISCORD_ADMIN_ROLE_ID),
   "lang-panel": (i) => handleLangPanelCommand(i, DISCORD_ADMIN_ROLE_ID),
-  repost: (i) => handleRepostCommand(i, DISCORD_ADMIN_ROLE_ID),
   testwelcome: (i) => handleTestWelcomeCommand(i, DISCORD_ADMIN_ROLE_ID, welcomeConfig),
   giveaway: (i) => handleGiveawayCommand(i, DISCORD_ADMIN_ROLE_ID, client),
 };
@@ -156,11 +153,9 @@ async function registerCommands() {
   const commands = [
     buildClearCommand(),
     buildSondageCommand(),
-    buildReactionRoleCommand(),
     buildRolesPanelCommand(),
     buildRulesPanelCommand(),
     buildLangPanelCommand(),
-    buildRepostCommand(),
     buildTestWelcomeCommand(),
     buildGiveawayCommand(),
   ].map((c) => c.toJSON());

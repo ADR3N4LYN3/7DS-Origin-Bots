@@ -12,6 +12,7 @@ import {
   MediaGalleryItemBuilder,
   MessageFlags,
   type AttachmentBuilder,
+  type ButtonInteraction,
   type Message,
   type TextChannel,
 } from "discord.js";
@@ -143,4 +144,39 @@ export async function deliverPanel(
   const sent = await channel.send({ components: [container], files, flags: MessageFlags.IsComponentsV2 });
   if (opts.react) await sent.react(opts.react).catch(() => {});
   return sent;
+}
+
+// ── Button handler (customId "rr:<roleId>") ─────────────────────────
+// Partagé par tous les panneaux (rôles, langues). Toggle le rôle du membre.
+
+export async function handleRoleButtonClick(interaction: ButtonInteraction) {
+  const roleId = interaction.customId.slice(3); // strip "rr:"
+
+  const member = interaction.guild?.members.cache.get(interaction.user.id)
+    ?? await interaction.guild?.members.fetch(interaction.user.id).catch(() => null);
+
+  if (!member) {
+    await interaction.reply({ content: "❌ Erreur : membre introuvable.", flags: 64 });
+    return;
+  }
+
+  const role = interaction.guild?.roles.cache.get(roleId);
+  if (!role) {
+    await interaction.reply({ content: "❌ Erreur : rôle introuvable.", flags: 64 });
+    return;
+  }
+
+  try {
+    if (member.roles.cache.has(roleId)) {
+      await member.roles.remove(roleId);
+      await interaction.reply({ content: `❌ Rôle **${role.name}** retiré. / Role **${role.name}** removed.`, flags: 64 });
+    } else {
+      await member.roles.add(roleId);
+      await interaction.reply({ content: `✅ Rôle **${role.name}** ajouté ! / Role **${role.name}** added!`, flags: 64 });
+    }
+    setTimeout(() => interaction.deleteReply().catch(() => {}), 3000);
+  } catch (err) {
+    console.error("Failed to toggle role:", err);
+    await interaction.reply({ content: "❌ Impossible de modifier ce rôle.", flags: 64 });
+  }
 }
