@@ -56,6 +56,8 @@ export async function handleRulesPanelCommand(
 
   const channel = (interaction.options.getChannel("channel") ?? interaction.channel) as TextChannel;
 
+  await interaction.deferReply({ flags: 64 });
+
   const iconUrl = interaction.guild?.iconURL({ size: 256 })
     ?? interaction.client.user?.displayAvatarURL({ size: 256 });
 
@@ -113,15 +115,14 @@ export async function handleRulesPanelCommand(
       files: banner ? [banner] : [],
     });
     if (!msg) {
-      await interaction.reply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel).", flags: 64 });
+      await interaction.editReply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel)." });
       return;
     }
-    await interaction.reply({
+    await interaction.editReply({
       content: messageId ? "✅ Règlement mis à jour." : `✅ Règlement posté dans <#${channel.id}>.`,
-      flags: 64,
     });
   } catch (err) {
     console.error("Failed to post rules panel:", err);
-    await interaction.reply({ content: "❌ Erreur lors de l'envoi du règlement.", flags: 64 });
+    await interaction.editReply({ content: "❌ Erreur lors de l'envoi du règlement." });
   }
 }

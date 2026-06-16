@@ -39,6 +39,8 @@ export async function handleLangPanelCommand(
     return;
   }
 
+  await interaction.deferReply({ flags: 64 });
+
   const iconUrl = interaction.guild?.iconURL({ size: 256 })
     ?? interaction.client.user?.displayAvatarURL({ size: 256 });
 
@@ -62,15 +64,14 @@ export async function handleLangPanelCommand(
       files: banner ? [banner] : [],
     });
     if (!msg) {
-      await interaction.reply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel).", flags: 64 });
+      await interaction.editReply({ content: "❌ Message introuvable dans ce channel (vérifie l'ID et le channel)." });
       return;
     }
-    await interaction.reply({
+    await interaction.editReply({
       content: messageId ? "✅ Panneau des langues mis à jour." : `✅ Panneau des langues posté dans <#${channel.id}>.`,
-      flags: 64,
     });
   } catch (err) {
     console.error("Failed to post lang panel:", err);
-    await interaction.reply({ content: "❌ Erreur lors de l'envoi du panneau des langues.", flags: 64 });
+    await interaction.editReply({ content: "❌ Erreur lors de l'envoi du panneau des langues." });
   }
 }

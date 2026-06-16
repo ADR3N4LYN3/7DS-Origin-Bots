@@ -21,12 +21,14 @@ export async function handleTestWelcomeCommand(
     return;
   }
 
-  const member = await interaction.guild?.members.fetch(interaction.user.id);
+  await interaction.deferReply({ flags: 64 });
+
+  const member = await interaction.guild?.members.fetch(interaction.user.id).catch(() => null);
   if (!member) {
-    await interaction.reply({ content: "❌ Membre introuvable.", flags: 64 });
+    await interaction.editReply({ content: "❌ Membre introuvable." });
     return;
   }
 
   await handleGuildMemberAdd(member, welcomeConfig);
-  await interaction.reply({ content: "✅ Message de bienvenue envoyé.", flags: 64 });
+  await interaction.editReply({ content: "✅ Message de bienvenue envoyé." });
 }
