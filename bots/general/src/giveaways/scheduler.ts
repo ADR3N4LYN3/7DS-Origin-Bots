@@ -10,6 +10,7 @@ import {
   type Giveaway,
 } from "./storage.js";
 import { buildGiveawayContainer, buildAnnouncementContainer } from "./render.js";
+import { GIVEAWAY_WINNERS_CHANNEL_ID } from "./config.js";
 import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
 const TIER_EMOJIS = ["🥇", "🥈", "🥉"] as const;
@@ -20,6 +21,43 @@ const timers = new Map<string, NodeJS.Timeout>();
 
 function guildIconUrl(channel: TextChannel): string | null {
   return channel.guild.iconURL({ size: 256 }) ?? channel.client.user?.displayAvatarURL({ size: 256 }) ?? null;
+}
+
+async function getWinnersChannel(client: Client): Promise<TextChannel | null> {
+  if (!GIVEAWAY_WINNERS_CHANNEL_ID) return null;
+  const ch = await client.channels.fetch(GIVEAWAY_WINNERS_CHANNEL_ID).catch(() => null);
+  return (ch && ch.isTextBased() ? (ch as TextChannel) : null);
+}
+
+// Donne l'accès (voir + écrire) au salon des gagnants et les tag dedans.
+async function grantWinnersAccess(client: Client, winnerIds: string[], prizes: (string | null)[]) {
+  if (winnerIds.length === 0) return;
+  const channel = await getWinnersChannel(client);
+  if (!channel) return;
+
+  for (const userId of winnerIds) {
+    await channel.permissionOverwrites
+      .edit(userId, { ViewChannel: true, SendMessages: true })
+      .catch((err) => console.error(`Failed to grant winners-channel access to ${userId}:`, err));
+  }
+
+  const lines = winnerIds.map((id, i) => `${TIER_EMOJIS[i] ?? "🎁"} <@${id}> — ${prizes[i] ?? ""}`.trim());
+  await channel.send({
+    content: [
+      "🎉 **Félicitations aux gagnants ! / Congratulations to the winners!**",
+      ...lines,
+      "",
+      "Vous avez désormais accès à ce salon. / You now have access to this channel.",
+    ].join("\n"),
+    allowedMentions: { users: winnerIds },
+  }).catch(() => {});
+}
+
+// Retire l'accès d'un ancien gagnant (utilisé au reroll).
+async function revokeWinnerAccess(client: Client, userId: string) {
+  const channel = await getWinnersChannel(client);
+  if (!channel) return;
+  await channel.permissionOverwrites.delete(userId).catch(() => {});
 }
 
 export function scheduleGiveaway(client: Client, g: Giveaway) {
@@ -122,6 +160,9 @@ export async function endGiveaway(client: Client, messageId: string) {
     allowedMentions: { users: winnerIds },
     reply: { messageReference: messageId, failIfNotExists: false },
   }).catch(() => {});
+
+  // Accès au salon des gagnants
+  await grantWinnersAccess(client, winnerIds, [g.prize1, g.prize2, g.prize3]);
 }
 
 export async function rerollGiveaway(
@@ -139,6 +180,7 @@ export async function rerollGiveaway(
     return { success: false, error: `Le lot ${targetTier} n'existe pas pour ce giveaway` };
   }
 
+  const oldWinner = g.winners.find((w) => w.tier === targetTier)?.userId;
   const exclude = new Set(g.winners.map((w) => w.userId));
 
   const newWinners = pickWinners(g.participants, exclude, 1);
@@ -162,6 +204,10 @@ export async function rerollGiveaway(
       reply: { messageReference: messageId, failIfNotExists: false },
     });
   }
+
+  // Accès au salon des gagnants : retire l'ancien, ajoute le nouveau
+  if (oldWinner && oldWinner !== newWinner) await revokeWinnerAccess(client, oldWinner);
+  await grantWinnersAccess(client, [newWinner], [prizes[targetTier - 1]]);
 
   return { success: true, newWinner, tier: targetTier };
 }
