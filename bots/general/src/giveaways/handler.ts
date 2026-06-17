@@ -1,11 +1,11 @@
-import { type ButtonInteraction, type TextChannel } from "discord.js";
+import { type ButtonInteraction, type TextChannel, MessageFlags } from "discord.js";
 import {
   findGiveaway,
   addParticipant,
   removeParticipant,
 } from "./storage.js";
-import { buildJoinButtonRow } from "./scheduler.js";
-import { buildGiveawayEmbed } from "./embed.js";
+import { buildGiveawayContainer } from "./render.js";
+import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
 export async function handleGiveawayButton(interaction: ButtonInteraction) {
   // customId format: gw:<messageId>:<action>
@@ -21,42 +21,31 @@ export async function handleGiveawayButton(interaction: ButtonInteraction) {
     return;
   }
 
-  if (action === "lang") {
-    // Ephemeral preview in English
-    const embed = buildGiveawayEmbed(g, "en");
-    await interaction.reply({ embeds: [embed], flags: 64 });
-    return;
-  }
-
   if (action !== "join") return;
 
   if (g.ended) {
-    await interaction.reply({ content: "❌ Ce giveaway est terminé.", flags: 64 });
+    await interaction.reply({ content: "❌ Ce giveaway est terminé. / This giveaway has ended.", flags: 64 });
     return;
   }
 
   const userId = interaction.user.id;
   const isParticipating = g.participants.includes(userId);
 
-  let total: number;
-
   if (isParticipating) {
-    const result = removeParticipant(messageId, userId);
-    total = result.total;
+    removeParticipant(messageId, userId);
     await interaction.reply({
-      content: `🚪 Tu t'es désinscrit du giveaway.\nClique à nouveau pour reparticiper.`,
+      content: "🚪 Tu t'es désinscrit. Reclique pour reparticiper.\n*You left. Click again to rejoin.*",
       flags: 64,
     });
   } else {
-    const result = addParticipant(messageId, userId);
-    total = result.total;
+    addParticipant(messageId, userId);
     await interaction.reply({
-      content: `✅ Tu participes au giveaway !\nClique à nouveau pour annuler ta participation.`,
+      content: "✅ Tu participes au giveaway !\n*You're in the giveaway!*",
       flags: 64,
     });
   }
 
-  // Update embed + button with new count
+  // Met à jour la carte (compteur de participants)
   const channel = (await interaction.client.channels.fetch(g.channelId)) as TextChannel | null;
   if (!channel) return;
 
@@ -66,8 +55,13 @@ export async function handleGiveawayButton(interaction: ButtonInteraction) {
   const updated = findGiveaway(messageId);
   if (!updated) return;
 
+  const iconUrl = interaction.guild?.iconURL({ size: 256 })
+    ?? interaction.client.user?.displayAvatarURL({ size: 256 });
+  const banner = bannerFile();
+
   await message.edit({
-    embeds: [buildGiveawayEmbed(updated)],
-    components: [buildJoinButtonRow(messageId, total)],
+    components: [buildGiveawayContainer(updated, { iconUrl, bannerUrl: banner ? BANNER_ATTACHMENT_URL : undefined })],
+    files: banner ? [banner] : [],
+    flags: MessageFlags.IsComponentsV2,
   }).catch(() => {});
 }

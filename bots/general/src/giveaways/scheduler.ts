@@ -1,10 +1,7 @@
 import {
   type Client,
   type TextChannel,
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
+  MessageFlags,
 } from "discord.js";
 import {
   loadGiveaways,
@@ -12,6 +9,8 @@ import {
   findGiveaway,
   type Giveaway,
 } from "./storage.js";
+import { buildGiveawayContainer, buildAnnouncementContainer } from "./render.js";
+import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
 const TIER_EMOJIS = ["🥇", "🥈", "🥉"] as const;
 // Max safe setTimeout delay (~24.8 days)
@@ -19,21 +18,8 @@ const MAX_TIMEOUT = 2_147_483_647;
 
 const timers = new Map<string, NodeJS.Timeout>();
 
-export function buildJoinButtonRow(messageId: string, participantCount: number, disabled = false): ActionRowBuilder<ButtonBuilder> {
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`gw:${messageId}:join`)
-      .setLabel(`Participer (${participantCount})`)
-      .setEmoji("🎉")
-      .setStyle(ButtonStyle.Primary)
-      .setDisabled(disabled),
-    new ButtonBuilder()
-      .setCustomId(`gw:${messageId}:lang`)
-      .setLabel("EN / FR")
-      .setEmoji("🌐")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(disabled),
-  );
+function guildIconUrl(channel: TextChannel): string | null {
+  return channel.guild.iconURL({ size: 256 }) ?? channel.client.user?.displayAvatarURL({ size: 256 }) ?? null;
 }
 
 export function scheduleGiveaway(client: Client, g: Giveaway) {
@@ -93,40 +79,6 @@ function pickWinners(
   return eligible.slice(0, count);
 }
 
-function buildEndedEmbed(g: Giveaway, winners: { tier: 1 | 2 | 3; userId: string }[]): EmbedBuilder {
-  const SEP = "━━━━━━━━━━━━━━━━━━━━━━━━";
-  const prizes = [g.prize1, g.prize2, g.prize3];
-  const tierLabels = ["1ʳᵉ place", "2ᵉ place", "3ᵉ place"];
-
-  const lines = [0, 1, 2]
-    .filter((i) => prizes[i])
-    .map((i) => {
-      const w = winners.find((x) => x.tier === (i + 1));
-      const winner = w ? `<@${w.userId}>` : "*— Pas assez de participants —*";
-      return `> ${TIER_EMOJIS[i]}  **${tierLabels[i]}** — ${prizes[i]}\n>     ↳ ${winner}`;
-    });
-
-  const desc = [
-    SEP,
-    `### 🏆  Résultats du tirage`,
-    "",
-    ...lines,
-    "",
-    SEP,
-    "",
-    `🎟️  **Participants** \`${g.participants.length}\``,
-    `👤  **Hôte** <@${g.hostId}>`,
-  ].join("\n");
-
-  return new EmbedBuilder()
-    .setColor(0x2ecc71)
-    .setAuthor({ name: "GIVEAWAY TERMINÉ  ·  7DS Origin" })
-    .setTitle("🎊  Bravo aux gagnants !  🎊")
-    .setDescription(desc)
-    .setFooter({ text: "7DS Origin" })
-    .setTimestamp();
-}
-
 export async function endGiveaway(client: Client, messageId: string) {
   const g = findGiveaway(messageId);
   if (!g || g.ended) return;
@@ -142,45 +94,34 @@ export async function endGiveaway(client: Client, messageId: string) {
   }));
 
   updateGiveaway(messageId, { ended: true, winners });
+  const ended = { ...g, ended: true, winners };
 
   const channel = (await client.channels.fetch(g.channelId)) as TextChannel | null;
   if (!channel) return;
 
-  // Edit original message to mark ended + disable button
+  const iconUrl = guildIconUrl(channel);
+  const banner = bannerFile();
+  const bannerUrl = banner ? BANNER_ATTACHMENT_URL : undefined;
+  const files = banner ? [banner] : [];
+
+  // Edit original message → état terminé + bouton désactivé
   const message = await channel.messages.fetch(messageId).catch(() => null);
   if (message) {
-    const embed = EmbedBuilder.from(message.embeds[0])
-      .setTitle("🎉 Giveaway terminé !")
-      .setColor(0x808080);
     await message.edit({
-      embeds: [embed],
-      components: [buildJoinButtonRow(messageId, g.participants.length, true)],
+      components: [buildGiveawayContainer(ended, { iconUrl, bannerUrl, ended: true })],
+      files,
+      flags: MessageFlags.IsComponentsV2,
     }).catch(() => {});
   }
 
-  const announcement = buildEndedEmbed(g, winners);
+  // Annonce des résultats (en réponse au giveaway, ping les gagnants)
   await channel.send({
-    content: buildCongratsMessage(winners),
-    embeds: [announcement],
+    components: [buildAnnouncementContainer(ended, { iconUrl, bannerUrl })],
+    files,
+    flags: MessageFlags.IsComponentsV2,
+    allowedMentions: { users: winnerIds },
     reply: { messageReference: messageId, failIfNotExists: false },
-  });
-}
-
-function buildCongratsMessage(winners: { tier: 1 | 2 | 3; userId: string }[]): string {
-  if (winners.length === 0) return "Personne n'a participé 😢";
-
-  const mentions = winners.map((w) => `<@${w.userId}>`);
-
-  if (mentions.length === 1) {
-    return `🎉 Félicitations ${mentions[0]} !`;
-  }
-
-  if (mentions.length === 2) {
-    return `🎉 Félicitations ${mentions[0]} et ${mentions[1]} !`;
-  }
-
-  // 3 winners
-  return `🎉 Félicitations ${mentions[0]}, ${mentions[1]} et ${mentions[2]} !`;
+  }).catch(() => {});
 }
 
 export async function rerollGiveaway(
@@ -214,9 +155,10 @@ export async function rerollGiveaway(
 
   const channel = (await client.channels.fetch(g.channelId)) as TextChannel | null;
   if (channel) {
-    const prize = [g.prize1, g.prize2, g.prize3][targetTier - 1];
+    const prize = prizes[targetTier - 1];
     await channel.send({
       content: `🎲 **Reroll** ${TIER_EMOJIS[targetTier - 1]} ${prize} : <@${newWinner}>`,
+      allowedMentions: { users: [newWinner] },
       reply: { messageReference: messageId, failIfNotExists: false },
     });
   }

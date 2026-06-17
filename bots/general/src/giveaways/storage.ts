@@ -15,10 +15,7 @@ export interface Giveaway {
   ended: boolean;
   participants: string[]; // user IDs
   winners: { tier: 1 | 2 | 3; userId: string }[]; // populated on end / reroll
-  imageUrl?: string | null; // optional banner image
-  thumbnailUrl?: string | null; // optional small thumbnail
-  title?: string | null; // custom embed title
-  cta?: string | null; // custom call-to-action text
+  title?: string | null; // titre personnalisé optionnel
 }
 
 export function addParticipant(messageId: string, userId: string): { added: boolean; total: number } {

@@ -2,6 +2,7 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
+  MessageFlags,
   type TextChannel,
   type Client,
 } from "discord.js";
@@ -16,9 +17,9 @@ import {
   scheduleGiveaway,
   endGiveaway,
   rerollGiveaway,
-  buildJoinButtonRow,
 } from "../giveaways/scheduler.js";
-import { buildGiveawayEmbed } from "../giveaways/embed.js";
+import { buildGiveawayContainer } from "../giveaways/render.js";
+import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
 // ── Duration parser ────────────────────────────────────────────────
 
@@ -60,16 +61,7 @@ export function buildGiveawayCommand() {
           o.setName("channel").setDescription("Channel cible (par défaut : actuel)").setRequired(false),
         )
         .addStringOption((o) =>
-          o.setName("image").setDescription("URL d'une image bannière (grande image en bas)").setRequired(false),
-        )
-        .addStringOption((o) =>
-          o.setName("thumbnail").setDescription("URL d'une miniature (petite image en haut à droite)").setRequired(false),
-        )
-        .addStringOption((o) =>
-          o.setName("title").setDescription("Titre personnalisé (par défaut : 🎉 Tente ta chance ! 🎉)").setRequired(false),
-        )
-        .addStringOption((o) =>
-          o.setName("cta").setDescription("Texte d'appel à l'action en bas de l'embed").setRequired(false),
+          o.setName("title").setDescription("Titre personnalisé (par défaut : 🎉 Giveaway · 7DS Origin)").setRequired(false),
         ),
     )
     .addSubcommand((sub) =>
@@ -163,10 +155,7 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
   }
 
   const endsAt = Date.now() + durationMs;
-  const imageUrl = interaction.options.getString("image");
-  const thumbnailUrl = interaction.options.getString("thumbnail");
   const title = interaction.options.getString("title");
-  const cta = interaction.options.getString("cta");
 
   const placeholder: Giveaway = {
     messageId: "pending",
@@ -178,28 +167,41 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
     ended: false,
     participants: [],
     winners: [],
-    imageUrl: imageUrl ?? null,
-    thumbnailUrl: thumbnailUrl ?? null,
     title: title ?? null,
-    cta: cta ?? null,
   };
 
+  await interaction.deferReply({ flags: 64 });
+
+  const iconUrl = interaction.guild?.iconURL({ size: 256 })
+    ?? interaction.client.user?.displayAvatarURL({ size: 256 });
+  const banner = bannerFile();
+  const bannerUrl = banner ? BANNER_ATTACHMENT_URL : undefined;
+  const files = banner ? [banner] : [];
+
   try {
-    // Send embed first to get the messageId, then update with the button (which needs the messageId in customId)
-    const message = await targetChannel.send({ embeds: [buildGiveawayEmbed(placeholder)] });
-    await message.edit({ components: [buildJoinButtonRow(message.id, 0)] });
+    // 1ᵉʳ envoi (bouton désactivé) pour obtenir le messageId, puis édition avec le vrai bouton.
+    const message = await targetChannel.send({
+      components: [buildGiveawayContainer(placeholder, { iconUrl, bannerUrl, pending: true })],
+      files,
+      flags: MessageFlags.IsComponentsV2,
+    });
 
     const giveaway: Giveaway = { ...placeholder, messageId: message.id };
+    await message.edit({
+      components: [buildGiveawayContainer(giveaway, { iconUrl, bannerUrl })],
+      files,
+      flags: MessageFlags.IsComponentsV2,
+    });
+
     addGiveaway(giveaway);
     scheduleGiveaway(interaction.client, giveaway);
 
-    await interaction.reply({
+    await interaction.editReply({
       content: `✅ Giveaway lancé dans <#${targetChannel.id}> ! ID: \`${message.id}\``,
-      flags: 64,
     });
   } catch (err) {
     console.error("Failed to start giveaway:", err);
-    await interaction.reply({ content: "❌ Erreur lors du lancement du giveaway.", flags: 64 });
+    await interaction.editReply({ content: "❌ Erreur lors du lancement du giveaway." });
   }
 }
 
