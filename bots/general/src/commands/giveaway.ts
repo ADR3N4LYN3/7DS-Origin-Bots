@@ -21,6 +21,9 @@ import {
 import { buildGiveawayContainer } from "../giveaways/render.js";
 import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
+// Rôle pingué à l'ouverture d'un giveaway (Notif Giveaway).
+const GIVEAWAY_PING_ROLE_ID = "1513525057086034032";
+
 // ── Duration parser ────────────────────────────────────────────────
 
 const DURATION_RE = /^(\d+)\s*(s|m|h|d|w)$/i;
@@ -179,6 +182,12 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
   const files = banner ? [banner] : [];
 
   try {
+    // Ping du rôle Notif Giveaway (message séparé, une seule fois, au-dessus de la carte).
+    await targetChannel.send({
+      content: `🎉 <@&${GIVEAWAY_PING_ROLE_ID}> — Nouveau giveaway ! / New giveaway!`,
+      allowedMentions: { roles: [GIVEAWAY_PING_ROLE_ID] },
+    }).catch(() => {});
+
     // 1ᵉʳ envoi (bouton désactivé) pour obtenir le messageId, puis édition avec le vrai bouton.
     const message = await targetChannel.send({
       components: [buildGiveawayContainer(placeholder, { iconUrl, bannerUrl, pending: true })],

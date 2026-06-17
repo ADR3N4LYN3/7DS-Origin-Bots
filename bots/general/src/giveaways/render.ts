@@ -17,28 +17,75 @@ const GOLD = 0xc9a84c;
 const GREY = 0x808080;
 const GREEN = 0x2ecc71;
 
-const TIER = [
-  "🥇 **1ʳᵉ place / 1st**",
-  "🥈 **2ᵉ place / 2nd**",
-  "🥉 **3ᵉ place / 3rd**",
+const MEDALS = ["🥇", "🥈", "🥉"] as const;
+
+export type Lang = "fr" | "en" | "es" | "de";
+
+export const LANG_BUTTONS: { code: Lang; emoji: string; label: string }[] = [
+  { code: "en", emoji: "🇬🇧", label: "EN" },
+  { code: "es", emoji: "🇪🇸", label: "ES" },
+  { code: "de", emoji: "🇩🇪", label: "DE" },
 ];
+
+const I18N: Record<Lang, {
+  subtitle: string;
+  prizesHeader: string;
+  tiers: [string, string, string];
+  draw: string;
+  host: string;
+  participants: string;
+  cta: string;
+  join: string;
+}> = {
+  fr: {
+    subtitle: "Tente ta chance !",
+    prizesHeader: "🎁 Lots à gagner",
+    tiers: ["1ʳᵉ place", "2ᵉ place", "3ᵉ place"],
+    draw: "Tirage",
+    host: "Hôte",
+    participants: "Participants",
+    cta: "🎉 Clique sur **Participer** pour rejoindre — reclique pour quitter.",
+    join: "Participer",
+  },
+  en: {
+    subtitle: "Try your luck!",
+    prizesHeader: "🎁 Prizes",
+    tiers: ["1st place", "2nd place", "3rd place"],
+    draw: "Draw",
+    host: "Host",
+    participants: "Participants",
+    cta: "🎉 Click **Participate** to join — click again to leave.",
+    join: "Participate",
+  },
+  es: {
+    subtitle: "¡Prueba suerte!",
+    prizesHeader: "🎁 Premios",
+    tiers: ["1.er puesto", "2.º puesto", "3.er puesto"],
+    draw: "Sorteo",
+    host: "Anfitrión",
+    participants: "Participantes",
+    cta: "🎉 Pulsa **Participar** para unirte — vuelve a pulsar para salir.",
+    join: "Participar",
+  },
+  de: {
+    subtitle: "Versuch dein Glück!",
+    prizesHeader: "🎁 Preise",
+    tiers: ["1. Platz", "2. Platz", "3. Platz"],
+    draw: "Auslosung",
+    host: "Gastgeber",
+    participants: "Teilnehmer",
+    cta: "🎉 Klicke auf **Teilnehmen**, um mitzumachen — erneut klicken zum Verlassen.",
+    join: "Teilnehmen",
+  },
+};
 
 export interface GiveawayRenderOpts {
   iconUrl?: string | null;
   bannerUrl?: string;
   ended?: boolean;
   pending?: boolean; // 1ᵉʳ envoi : bouton désactivé tant que le messageId n'existe pas
-}
-
-function joinButtonRow(messageId: string, count: number, disabled: boolean): ActionRowBuilder<ButtonBuilder> {
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`gw:${messageId}:join`)
-      .setLabel(`Participer / Join (${count})`)
-      .setEmoji("🎉")
-      .setStyle(ButtonStyle.Primary)
-      .setDisabled(disabled),
-  );
+  lang?: Lang; // langue d'affichage (défaut: fr)
+  preview?: boolean; // aperçu éphémère : pas de boutons ni bannière
 }
 
 function addHeader(container: ContainerBuilder, titleLine: string, subtitle: string, iconUrl?: string | null) {
@@ -67,25 +114,48 @@ function addBanner(container: ContainerBuilder, bannerUrl?: string) {
   );
 }
 
-// Carte d'un giveaway en cours (ou terminé si opts.ended).
+function actionRow(g: Giveaway, t: typeof I18N[Lang], disabled: boolean): ActionRowBuilder<ButtonBuilder> {
+  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`gw:${g.messageId}:join`)
+      .setLabel(`${t.join} (${g.participants.length})`)
+      .setEmoji("🎉")
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(disabled),
+  );
+  for (const b of LANG_BUTTONS) {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`gw:${g.messageId}:lang:${b.code}`)
+        .setLabel(b.label)
+        .setEmoji(b.emoji)
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(disabled),
+    );
+  }
+  return row;
+}
+
+// Carte d'un giveaway (langue par défaut: FR). opts.preview = aperçu éphémère sans boutons/bannière.
 export function buildGiveawayContainer(g: Giveaway, opts: GiveawayRenderOpts = {}): ContainerBuilder {
+  const t = I18N[opts.lang ?? "fr"];
   const endTs = Math.floor(g.endsAt / 1000);
   const container = new ContainerBuilder().setAccentColor(opts.ended ? GREY : GOLD);
 
   const titleLine = opts.ended
-    ? "# 🎉 Giveaway terminé / Giveaway ended"
+    ? "# 🎉 Giveaway terminé / ended"
     : `# 🎉 ${g.title?.trim() || "Giveaway · 7DS Origin"}`;
-  const subtitle = opts.ended
-    ? "*Le tirage est terminé. / The draw is over.*"
-    : "**Tente ta chance ! / Try your luck!**";
+  const subtitle = opts.ended ? `*${t.subtitle}*` : `**${t.subtitle}**`;
   addHeader(container, titleLine, subtitle, opts.iconUrl);
 
   bigSep(container);
 
   const prizes = [g.prize1, g.prize2, g.prize3];
-  const prizeLines = [0, 1, 2].filter((i) => prizes[i]).map((i) => `${TIER[i]} — ${prizes[i]}`);
+  const prizeLines = [0, 1, 2]
+    .filter((i) => prizes[i])
+    .map((i) => `${MEDALS[i]} **${t.tiers[i]}** — ${prizes[i]}`);
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`### 🎁 Lots à gagner / Prizes\n${prizeLines.join("\n")}`),
+    new TextDisplayBuilder().setContent(`### ${t.prizesHeader}\n${prizeLines.join("\n")}`),
   );
 
   bigSep(container);
@@ -93,31 +163,26 @@ export function buildGiveawayContainer(g: Giveaway, opts: GiveawayRenderOpts = {
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
       [
-        `🕐 **Tirage / Draw** <t:${endTs}:R> · <t:${endTs}:f>`,
-        `👤 **Hôte / Host** <@${g.hostId}>`,
-        `🎟️ **Participants** \`${g.participants.length}\``,
+        `🕐 **${t.draw}** <t:${endTs}:R> · <t:${endTs}:f>`,
+        `👤 **${t.host}** <@${g.hostId}>`,
+        `🎟️ **${t.participants}** \`${g.participants.length}\``,
       ].join("\n"),
     ),
   );
 
-  if (!opts.ended) {
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        "🇫🇷 Clique sur **🎉 Participer** pour rejoindre — reclique pour quitter.\n" +
-          "🇬🇧 Click **🎉 Participate** to join — click again to leave.",
-      ),
-    );
+  if (!opts.preview && !opts.ended) {
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(t.cta));
   }
 
-  container.addActionRowComponents(
-    joinButtonRow(g.messageId, g.participants.length, !!opts.ended || !!opts.pending),
-  );
+  if (!opts.preview) {
+    container.addActionRowComponents(actionRow(g, t, !!opts.ended || !!opts.pending));
+    addBanner(container, opts.bannerUrl);
+  }
 
-  addBanner(container, opts.bannerUrl);
   return container;
 }
 
-// Carte d'annonce des résultats (message séparé en réponse au giveaway).
+// Carte d'annonce des résultats (message séparé, bilingue FR/EN).
 export function buildAnnouncementContainer(g: Giveaway, opts: GiveawayRenderOpts = {}): ContainerBuilder {
   const container = new ContainerBuilder().setAccentColor(GREEN);
 
@@ -136,7 +201,7 @@ export function buildAnnouncementContainer(g: Giveaway, opts: GiveawayRenderOpts
     .map((i) => {
       const w = g.winners.find((x) => x.tier === (i + 1) as 1 | 2 | 3);
       const who = w ? `<@${w.userId}>` : "*— Pas assez de participants / Not enough entrants —*";
-      return `${TIER[i]} — ${prizes[i]}\n↳ ${who}`;
+      return `${MEDALS[i]} **${I18N.fr.tiers[i]} / ${I18N.en.tiers[i]}** — ${prizes[i]}\n↳ ${who}`;
     });
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(`### 🏆 Résultats / Results\n${lines.join("\n\n")}`),

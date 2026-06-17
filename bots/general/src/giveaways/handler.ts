@@ -4,11 +4,13 @@ import {
   addParticipant,
   removeParticipant,
 } from "./storage.js";
-import { buildGiveawayContainer } from "./render.js";
+import { buildGiveawayContainer, type Lang } from "./render.js";
 import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
+const VALID_LANGS: Lang[] = ["fr", "en", "es", "de"];
+
 export async function handleGiveawayButton(interaction: ButtonInteraction) {
-  // customId format: gw:<messageId>:<action>
+  // customId format: gw:<messageId>:<action>[:<lang>]
   const parts = interaction.customId.split(":");
   if (parts[0] !== "gw") return;
 
@@ -18,6 +20,18 @@ export async function handleGiveawayButton(interaction: ButtonInteraction) {
 
   if (!g) {
     await interaction.reply({ content: "❌ Giveaway introuvable.", flags: 64 });
+    return;
+  }
+
+  // Aperçu traduit (éphémère, sans boutons ni bannière)
+  if (action === "lang") {
+    const lang = parts[3] as Lang;
+    if (!VALID_LANGS.includes(lang)) return;
+    const container = buildGiveawayContainer(g, { lang, preview: true });
+    await interaction.reply({
+      components: [container],
+      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+    });
     return;
   }
 
