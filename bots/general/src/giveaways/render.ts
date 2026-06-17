@@ -28,7 +28,6 @@ export const LANG_BUTTONS: { code: Lang; emoji: string; label: string }[] = [
 ];
 
 const I18N: Record<Lang, {
-  subtitle: string;
   prizesHeader: string;
   tiers: [string, string, string];
   draw: string;
@@ -38,7 +37,6 @@ const I18N: Record<Lang, {
   join: string;
 }> = {
   fr: {
-    subtitle: "Tente ta chance !",
     prizesHeader: "🎁 Lots à gagner",
     tiers: ["1ʳᵉ place", "2ᵉ place", "3ᵉ place"],
     draw: "Tirage",
@@ -48,7 +46,6 @@ const I18N: Record<Lang, {
     join: "Participer",
   },
   en: {
-    subtitle: "Try your luck!",
     prizesHeader: "🎁 Prizes",
     tiers: ["1st place", "2nd place", "3rd place"],
     draw: "Draw",
@@ -58,7 +55,6 @@ const I18N: Record<Lang, {
     join: "Participate",
   },
   es: {
-    subtitle: "¡Prueba suerte!",
     prizesHeader: "🎁 Premios",
     tiers: ["1.er puesto", "2.º puesto", "3.er puesto"],
     draw: "Sorteo",
@@ -68,7 +64,6 @@ const I18N: Record<Lang, {
     join: "Participar",
   },
   de: {
-    subtitle: "Versuch dein Glück!",
     prizesHeader: "🎁 Preise",
     tiers: ["1. Platz", "2. Platz", "3. Platz"],
     draw: "Auslosung",
@@ -89,7 +84,7 @@ export interface GiveawayRenderOpts {
 }
 
 function addHeader(container: ContainerBuilder, titleLine: string, subtitle: string, iconUrl?: string | null) {
-  const header = new TextDisplayBuilder().setContent(`${titleLine}\n${subtitle}`);
+  const header = new TextDisplayBuilder().setContent(subtitle ? `${titleLine}\n${subtitle}` : titleLine);
   if (iconUrl) {
     container.addSectionComponents(
       new SectionBuilder()
@@ -145,8 +140,7 @@ export function buildGiveawayContainer(g: Giveaway, opts: GiveawayRenderOpts = {
   const titleLine = opts.ended
     ? "# 🎉 Giveaway terminé / ended"
     : `# 🎉 ${g.title?.trim() || "Giveaway · 7DS Origin"}`;
-  const subtitle = opts.ended ? `*${t.subtitle}*` : `**${t.subtitle}**`;
-  addHeader(container, titleLine, subtitle, opts.iconUrl);
+  addHeader(container, titleLine, "", opts.iconUrl);
 
   bigSep(container);
 
@@ -155,7 +149,7 @@ export function buildGiveawayContainer(g: Giveaway, opts: GiveawayRenderOpts = {
     .filter((i) => prizes[i])
     .map((i) => `${MEDALS[i]} **${t.tiers[i]}** — ${prizes[i]}`);
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`### ${t.prizesHeader}\n${prizeLines.join("\n")}`),
+    new TextDisplayBuilder().setContent(`### ${t.prizesHeader}\n\n${prizeLines.join("\n\n")}`),
   );
 
   bigSep(container);
@@ -166,7 +160,7 @@ export function buildGiveawayContainer(g: Giveaway, opts: GiveawayRenderOpts = {
         `🕐 **${t.draw}** <t:${endTs}:R> · <t:${endTs}:f>`,
         `👤 **${t.host}** <@${g.hostId}>`,
         `🎟️ **${t.participants}** \`${g.participants.length}\``,
-      ].join("\n"),
+      ].join("\n\n"),
     ),
   );
 
