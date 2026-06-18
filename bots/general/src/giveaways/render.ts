@@ -182,8 +182,8 @@ export function buildAnnouncementContainer(g: Giveaway, opts: GiveawayRenderOpts
 
   addHeader(
     container,
-    "# 🎊 Bravo aux gagnants ! / Congratulations!",
-    "*Merci à tous les participants. / Thanks to everyone who joined.*",
+    "# 🎊 Bravo aux gagnants !\n## 🎊 Congratulations!",
+    "*Merci à tous les participants.*\n*Thanks to everyone who joined.*",
     opts.iconUrl,
   );
 
