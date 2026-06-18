@@ -194,18 +194,20 @@ export function buildAnnouncementContainer(g: Giveaway, opts: GiveawayRenderOpts
     .filter((i) => prizes[i])
     .map((i) => {
       const w = g.winners.find((x) => x.tier === (i + 1) as 1 | 2 | 3);
-      const who = w ? `<@${w.userId}>` : "*— Pas assez de participants / Not enough entrants —*";
-      return `${MEDALS[i]} **${I18N.fr.tiers[i]} / ${I18N.en.tiers[i]}** — ${prizes[i]}\n↳ ${who}`;
+      const who = w
+        ? `↳ <@${w.userId}>`
+        : "↳ *Pas assez de participants*\n↳ *Not enough entrants*";
+      return `${MEDALS[i]} **${prizes[i]}**\n${who}`;
     });
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`### 🏆 Résultats / Results\n${lines.join("\n\n")}`),
+    new TextDisplayBuilder().setContent(`### 🏆 Résultats\n### 🏆 Results\n\n${lines.join("\n\n")}`),
   );
 
   bigSep(container);
 
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
-      `🎟️ **Participants** \`${g.participants.length}\` · 👤 **Hôte / Host** <@${g.hostId}>`,
+      `🎟️ **Participants** \`${g.participants.length}\`\n\n👤 **Hôte** <@${g.hostId}>`,
     ),
   );
 
