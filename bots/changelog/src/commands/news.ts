@@ -1,6 +1,7 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
+  ChannelType,
   type TextChannel,
 } from "discord.js";
 import { hasAdminRole, splitContent } from "../utils.js";
@@ -98,6 +99,7 @@ export async function handleNewsCommand(
   };
 
   try {
+    let published = 0;
     for (let i = 0; i < chunks.length; i++) {
       const isLast = i === chunks.length - 1;
       const payload: { content?: string; embeds?: any[]; files?: any[] } = {};
@@ -114,11 +116,22 @@ export async function handleNewsCommand(
         }
       }
 
-      await channel.send(payload);
+      const sent = await channel.send(payload);
+
+      // Salon d'annonces → « Publier » vers les serveurs abonnés (un send() ne le fait pas).
+      if (sent.channel.type === ChannelType.GuildAnnouncement) {
+        try {
+          await sent.crosspost();
+          published++;
+        } catch (err) {
+          console.error("Failed to crosspost message:", err);
+        }
+      }
     }
 
+    const suffix = published > 0 ? " et publiée aux serveurs abonnés" : "";
     await interaction.reply({
-      content: `✅ ${SUBCOMMAND_LABELS[subcommand]} publiée dans <#${targetChannelId}>.`,
+      content: `✅ ${SUBCOMMAND_LABELS[subcommand]} publiée dans <#${targetChannelId}>${suffix}.`,
       flags: 64,
     });
   } catch (err) {

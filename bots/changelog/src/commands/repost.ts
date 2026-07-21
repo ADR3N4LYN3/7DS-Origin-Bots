@@ -1,6 +1,7 @@
 import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
+  ChannelType,
   type TextChannel,
 } from "discord.js";
 import { hasAdminRole, splitContent } from "../utils.js";
@@ -52,6 +53,7 @@ export async function handleRepublishCommand(
     const fullContent = [mention, original.content].filter(Boolean).join("\n");
     const chunks = splitContent(fullContent);
 
+    let published = 0;
     for (let i = 0; i < chunks.length; i++) {
       const isLast = i === chunks.length - 1;
       const payload: { content?: string; embeds?: any[]; files?: any[] } = {};
@@ -68,10 +70,21 @@ export async function handleRepublishCommand(
         }
       }
 
-      await targetChannel.send(payload);
+      const sent = await targetChannel.send(payload);
+
+      // Salon d'annonces → « Publier » vers les serveurs abonnés (un send() ne le fait pas).
+      if (sent.channel.type === ChannelType.GuildAnnouncement) {
+        try {
+          await sent.crosspost();
+          published++;
+        } catch (err) {
+          console.error("Failed to crosspost message:", err);
+        }
+      }
     }
 
-    await interaction.reply({ content: `✅ Message reposté dans <#${targetChannel.id}>.`, flags: 64 });
+    const suffix = published > 0 ? " et publié aux serveurs abonnés" : "";
+    await interaction.reply({ content: `✅ Message reposté dans <#${targetChannel.id}>${suffix}.`, flags: 64 });
   } catch (err) {
     console.error("Failed to repost message:", err);
     await interaction.reply({ content: "❌ Erreur lors du repost.", flags: 64 });
