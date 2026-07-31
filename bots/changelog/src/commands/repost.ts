@@ -28,8 +28,12 @@ export async function handleRepublishCommand(
   interaction: ChatInputCommandInteraction,
   adminRoleId: string,
 ) {
+  // Ack < 3 s obligatoire : fetch + N send + crosspost dépassent la fenêtre du token
+  // d'interaction → "L'application ne répond plus" côté Discord, 10062 côté bot.
+  await interaction.deferReply({ flags: 64 });
+
   if (!hasAdminRole(interaction, adminRoleId)) {
-    await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
+    await interaction.editReply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande." });
     return;
   }
 
@@ -41,7 +45,7 @@ export async function handleRepublishCommand(
   try {
     original = await sourceChannel.messages.fetch(messageId);
   } catch {
-    await interaction.reply({ content: "❌ Message introuvable dans ce channel.", flags: 64 });
+    await interaction.editReply({ content: "❌ Message introuvable dans ce channel." });
     return;
   }
 
@@ -84,9 +88,9 @@ export async function handleRepublishCommand(
     }
 
     const suffix = published > 0 ? " et publié aux serveurs abonnés" : "";
-    await interaction.reply({ content: `✅ Message reposté dans <#${targetChannel.id}>${suffix}.`, flags: 64 });
+    await interaction.editReply({ content: `✅ Message reposté dans <#${targetChannel.id}>${suffix}.` });
   } catch (err) {
     console.error("Failed to repost message:", err);
-    await interaction.reply({ content: "❌ Erreur lors du repost.", flags: 64 });
+    await interaction.editReply({ content: "❌ Erreur lors du repost." });
   }
 }

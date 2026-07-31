@@ -60,8 +60,12 @@ export async function handleNewsCommand(
   leaksChannelId: string,
   adminRoleId: string,
 ) {
+  // Ack < 3 s obligatoire : fetch + N send + crosspost dépassent la fenêtre du token
+  // d'interaction → "L'application ne répond plus" côté Discord, 10062 côté bot.
+  await interaction.deferReply({ flags: 64 });
+
   if (!hasAdminRole(interaction, adminRoleId)) {
-    await interaction.reply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande.", flags: 64 });
+    await interaction.editReply({ content: "❌ Vous n'avez pas la permission d'utiliser cette commande." });
     return;
   }
 
@@ -73,7 +77,7 @@ export async function handleNewsCommand(
   try {
     original = await sourceChannel.messages.fetch(messageId);
   } catch {
-    await interaction.reply({ content: "❌ Message introuvable dans ce channel.", flags: 64 });
+    await interaction.editReply({ content: "❌ Message introuvable dans ce channel." });
     return;
   }
 
@@ -81,7 +85,7 @@ export async function handleNewsCommand(
   const channel = (await interaction.client.channels.fetch(targetChannelId)) as TextChannel | null;
 
   if (!channel) {
-    await interaction.reply({ content: "❌ Channel introuvable.", flags: 64 });
+    await interaction.editReply({ content: "❌ Channel introuvable." });
     return;
   }
 
@@ -130,12 +134,11 @@ export async function handleNewsCommand(
     }
 
     const suffix = published > 0 ? " et publiée aux serveurs abonnés" : "";
-    await interaction.reply({
+    await interaction.editReply({
       content: `✅ ${SUBCOMMAND_LABELS[subcommand]} publiée dans <#${targetChannelId}>${suffix}.`,
-      flags: 64,
     });
   } catch (err) {
     console.error("Failed to send news:", err);
-    await interaction.reply({ content: "❌ Erreur lors de l'envoi du message.", flags: 64 });
+    await interaction.editReply({ content: "❌ Erreur lors de l'envoi du message." });
   }
 }
