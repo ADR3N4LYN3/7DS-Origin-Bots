@@ -18,6 +18,7 @@ import { buildTestWelcomeCommand, handleTestWelcomeCommand } from "./commands/te
 import { buildGiveawayCommand, handleGiveawayCommand } from "./commands/giveaway.js";
 import { restoreGiveaways } from "./giveaways/scheduler.js";
 import { handleGiveawayButton } from "./giveaways/handler.js";
+import { handleGiveawayModal, MODAL_PREFIX } from "./giveaways/modal.js";
 import { handleGuildMemberAdd } from "./events/welcome.js";
 import { handleGuildMemberRemove } from "./events/leave.js";
 import { handleGuildMemberUpdate } from "./events/memberUpdate.js";
@@ -115,9 +116,16 @@ client.on("voiceStateUpdate", (oldState, newState) => {
   handleVoiceStateUpdate(oldState, newState);
 });
 
-// ── Role buttons ────────────────────────────────────────────────────
+// ── Boutons & modals ────────────────────────────────────────────────
 
 client.on("interactionCreate", async (interaction) => {
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId.startsWith(`${MODAL_PREFIX}:`)) {
+      await handleGiveawayModal(interaction);
+    }
+    return;
+  }
+
   if (!interaction.isButton()) return;
   if (interaction.customId.startsWith("rr:")) {
     await handleRoleButtonClick(interaction);

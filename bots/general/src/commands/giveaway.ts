@@ -1,4 +1,5 @@
 import {
+  AttachmentBuilder,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   EmbedBuilder,
@@ -166,7 +167,7 @@ async function handleStart(interaction: ChatInputCommandInteraction) {
     prize1, prize2, prize3,
     endsAt,
     ended: false,
-    participants: [],
+    entries: [],
     winners: [],
     title: title ?? null,
   };
@@ -299,23 +300,52 @@ async function handleParticipants(interaction: ChatInputCommandInteraction) {
     return;
   }
 
-  if (g.participants.length === 0) {
+  if (g.entries.length === 0) {
     await interaction.reply({ content: "Aucun participant pour le moment.", flags: 64 });
     return;
   }
 
-  // Discord 4096 char description limit, mentions ~ 23 chars each
-  const mentions = g.participants.map((id) => `<@${id}>`);
-  const chunkSize = 100;
-  const description = mentions.length <= chunkSize
-    ? mentions.join(", ")
-    : mentions.slice(0, chunkSize).join(", ") + `\n\n*…et ${mentions.length - chunkSize} autres*`;
+  // Aperçu tronqué à la limite de 4096 caractères de description d'embed ;
+  // la liste complète part en pièce jointe CSV (réponse éphémère, admin only).
+  const lines: string[] = [];
+  let budget = 3900;
+  let shown = 0;
+  for (const e of g.entries) {
+    const line = `╸ <@${e.userId}> · \`${e.pseudo || "—"}\` · UID \`${e.uid || "—"}\``;
+    if (line.length + 1 > budget) break;
+    budget -= line.length + 1;
+    lines.push(line);
+    shown++;
+  }
+  if (shown < g.entries.length) lines.push(`\n*…et ${g.entries.length - shown} autres — voir le CSV joint*`);
 
   const embed = new EmbedBuilder()
     .setColor(0xc9a84c)
-    .setTitle(`🎟️ Participants (${g.participants.length})`)
-    .setDescription(description)
+    .setTitle(`🎟️ Participants (${g.entries.length})`)
+    .setDescription(lines.join("\n"))
     .setFooter({ text: `Giveaway ID: ${messageId}` });
 
-  await interaction.reply({ embeds: [embed], flags: 64 });
+  await interaction.reply({ embeds: [embed], files: [participantsCsv(g)], flags: 64 });
+}
+
+function csvCell(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+// Liste complète exploitable pour la livraison des lots.
+function participantsCsv(g: Giveaway): AttachmentBuilder {
+  const rows = [
+    ["pseudo", "uid_lootbar", "discord_id", "inscrit_le"].join(","),
+    ...g.entries.map((e) =>
+      [
+        csvCell(e.pseudo),
+        csvCell(e.uid),
+        csvCell(e.userId),
+        csvCell(e.joinedAt ? new Date(e.joinedAt).toISOString() : ""),
+      ].join(","),
+    ),
+  ];
+  return new AttachmentBuilder(Buffer.from(`﻿${rows.join("\n")}`, "utf-8"), {
+    name: `participants-${g.messageId}.csv`,
+  });
 }

@@ -7,9 +7,12 @@ import {
   loadGiveaways,
   updateGiveaway,
   findGiveaway,
+  findEntry,
+  participantIds,
   type Giveaway,
 } from "./storage.js";
-import { buildGiveawayContainer, buildAnnouncementContainer } from "./render.js";
+import { buildGiveawayContainer, buildAnnouncementContainer, maskUid } from "./render.js";
+import { guildIconUrl } from "./card.js";
 import { GIVEAWAY_WINNERS_CHANNEL_ID } from "./config.js";
 import { bannerFile, BANNER_ATTACHMENT_URL } from "../assets.js";
 
@@ -19,10 +22,6 @@ const MAX_TIMEOUT = 2_147_483_647;
 
 const timers = new Map<string, NodeJS.Timeout>();
 
-function guildIconUrl(channel: TextChannel): string | null {
-  return channel.guild.iconURL({ size: 256 }) ?? channel.client.user?.displayAvatarURL({ size: 256 }) ?? null;
-}
-
 async function getWinnersChannel(client: Client): Promise<TextChannel | null> {
   if (!GIVEAWAY_WINNERS_CHANNEL_ID) return null;
   const ch = await client.channels.fetch(GIVEAWAY_WINNERS_CHANNEL_ID).catch(() => null);
@@ -30,18 +29,28 @@ async function getWinnersChannel(client: Client): Promise<TextChannel | null> {
 }
 
 // Donne l'accès (voir + écrire) au salon des gagnants et les tag dedans.
-async function grantWinnersAccess(client: Client, winnerIds: string[], prizes: (string | null)[]) {
-  if (winnerIds.length === 0) return;
+// Salon privé → pseudo et UID Lootbar y sont affichés en clair, pour livrer sans redemander.
+async function grantWinnersAccess(
+  client: Client,
+  g: Giveaway,
+  awards: { userId: string; tier: 1 | 2 | 3; prize: string }[],
+) {
+  if (awards.length === 0) return;
   const channel = await getWinnersChannel(client);
   if (!channel) return;
 
+  const winnerIds = awards.map((a) => a.userId);
   for (const userId of winnerIds) {
     await channel.permissionOverwrites
       .edit(userId, { ViewChannel: true, SendMessages: true })
       .catch((err) => console.error(`Failed to grant winners-channel access to ${userId}:`, err));
   }
 
-  const lines = winnerIds.map((id, i) => `${TIER_EMOJIS[i] ?? "🎁"} <@${id}> — ${prizes[i] ?? ""}`.trim());
+  const lines = awards.map((a) => {
+    const entry = findEntry(g, a.userId);
+    const ident = entry?.pseudo ? `\n↳ \`${entry.pseudo}\` — UID Lootbar \`${entry.uid}\`` : "";
+    return `${TIER_EMOJIS[a.tier - 1]} <@${a.userId}> — ${a.prize}` + ident;
+  });
   await channel.send({
     content: [
       "🎉 **Félicitations aux gagnants ! / Congratulations to the winners!**",
@@ -125,7 +134,7 @@ export async function endGiveaway(client: Client, messageId: string) {
 
   // Number of winners = number of prizes filled
   const tierCount = 1 + (g.prize2 ? 1 : 0) + (g.prize3 ? 1 : 0);
-  const winnerIds = pickWinners(g.participants, new Set(), tierCount);
+  const winnerIds = pickWinners(participantIds(g), new Set(), tierCount);
   const winners: Giveaway["winners"] = winnerIds.map((userId, i) => ({
     tier: (i + 1) as 1 | 2 | 3,
     userId,
@@ -162,7 +171,12 @@ export async function endGiveaway(client: Client, messageId: string) {
   }).catch(() => {});
 
   // Accès au salon des gagnants
-  await grantWinnersAccess(client, winnerIds, [g.prize1, g.prize2, g.prize3]);
+  const prizes = [g.prize1, g.prize2, g.prize3];
+  await grantWinnersAccess(
+    client,
+    ended,
+    winners.map((w) => ({ userId: w.userId, tier: w.tier, prize: prizes[w.tier - 1] ?? "" })),
+  );
 }
 
 export async function rerollGiveaway(
@@ -183,7 +197,7 @@ export async function rerollGiveaway(
   const oldWinner = g.winners.find((w) => w.tier === targetTier)?.userId;
   const exclude = new Set(g.winners.map((w) => w.userId));
 
-  const newWinners = pickWinners(g.participants, exclude, 1);
+  const newWinners = pickWinners(participantIds(g), exclude, 1);
   if (newWinners.length === 0) {
     return { success: false, error: "Aucun participant éligible pour le reroll" };
   }
@@ -198,8 +212,11 @@ export async function rerollGiveaway(
   const channel = (await client.channels.fetch(g.channelId)) as TextChannel | null;
   if (channel) {
     const prize = prizes[targetTier - 1];
+    const entry = findEntry(g, newWinner);
+    // Salon public → UID masqué, comme dans l'annonce des résultats.
+    const ident = entry?.pseudo ? ` · \`${entry.pseudo}\` · UID \`${maskUid(entry.uid)}\`` : "";
     await channel.send({
-      content: `🎲 **Reroll** ${TIER_EMOJIS[targetTier - 1]} ${prize} : <@${newWinner}>`,
+      content: `🎲 **Reroll** ${TIER_EMOJIS[targetTier - 1]} ${prize} : <@${newWinner}>${ident}`,
       allowedMentions: { users: [newWinner] },
       reply: { messageReference: messageId, failIfNotExists: false },
     });
@@ -207,7 +224,9 @@ export async function rerollGiveaway(
 
   // Accès au salon des gagnants : retire l'ancien, ajoute le nouveau
   if (oldWinner && oldWinner !== newWinner) await revokeWinnerAccess(client, oldWinner);
-  await grantWinnersAccess(client, [newWinner], [prizes[targetTier - 1]]);
+  await grantWinnersAccess(client, g, [
+    { userId: newWinner, tier: targetTier, prize: prizes[targetTier - 1] ?? "" },
+  ]);
 
   return { success: true, newWinner, tier: targetTier };
 }

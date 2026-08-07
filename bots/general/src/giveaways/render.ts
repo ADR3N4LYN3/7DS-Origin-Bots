@@ -11,7 +11,8 @@ import {
   MediaGalleryBuilder,
   MediaGalleryItemBuilder,
 } from "discord.js";
-import type { Giveaway } from "./storage.js";
+import { findEntry, type Giveaway } from "./storage.js";
+import { I18N, LANG_BUTTONS, type Lang } from "./i18n.js";
 
 const GOLD = 0xc9a84c;
 const GREY = 0x808080;
@@ -19,60 +20,17 @@ const GREEN = 0x2ecc71;
 
 const MEDALS = ["🥇", "🥈", "🥉"] as const;
 
-export type Lang = "fr" | "en" | "es" | "de";
-
-export const LANG_BUTTONS: { code: Lang; emoji: string; label: string }[] = [
-  { code: "en", emoji: "🇬🇧", label: "EN" },
-  { code: "es", emoji: "🇪🇸", label: "ES" },
-  { code: "de", emoji: "🇩🇪", label: "DE" },
-];
-
-const I18N: Record<Lang, {
-  prizesHeader: string;
-  tiers: [string, string, string];
-  draw: string;
-  host: string;
-  participants: string;
-  cta: string;
-  join: string;
-}> = {
-  fr: {
-    prizesHeader: "🎁 Lots à gagner",
-    tiers: ["1ʳᵉ place", "2ᵉ place", "3ᵉ place"],
-    draw: "Tirage",
-    host: "Hôte",
-    participants: "Participants",
-    cta: "🎉 Clique sur **Participer** pour rejoindre — reclique pour quitter.",
-    join: "Participer",
-  },
-  en: {
-    prizesHeader: "🎁 Prizes",
-    tiers: ["1st place", "2nd place", "3rd place"],
-    draw: "Draw",
-    host: "Host",
-    participants: "Participants",
-    cta: "🎉 Click **Participate** to join — click again to leave.",
-    join: "Participate",
-  },
-  es: {
-    prizesHeader: "🎁 Premios",
-    tiers: ["1.er puesto", "2.º puesto", "3.er puesto"],
-    draw: "Sorteo",
-    host: "Anfitrión",
-    participants: "Participantes",
-    cta: "🎉 Pulsa **Participar** para unirte — vuelve a pulsar para salir.",
-    join: "Participar",
-  },
-  de: {
-    prizesHeader: "🎁 Preise",
-    tiers: ["1. Platz", "2. Platz", "3. Platz"],
-    draw: "Auslosung",
-    host: "Gastgeber",
-    participants: "Teilnehmer",
-    cta: "🎉 Klicke auf **Teilnehmen**, um mitzumachen — erneut klicken zum Verlassen.",
-    join: "Teilnehmen",
-  },
-};
+// UID partiellement masqué pour les surfaces publiques (l'annonce des résultats).
+// Le salon des gagnants et la liste admin, eux, affichent l'UID complet.
+// Les 4 derniers chiffres suffisent au gagnant pour se reconnaître ; le préfixe
+// `U` reste visible parce qu'il est commun à tous les comptes Lootbar.
+export function maskUid(uid: string): string {
+  if (!uid) return "—";
+  const KEEP = 4;
+  if (uid.length <= KEEP + 1) return "*".repeat(uid.length);
+  const head = uid.startsWith("U") ? "U" : "";
+  return `${head}${"*".repeat(uid.length - head.length - KEEP)}${uid.slice(-KEEP)}`;
+}
 
 export interface GiveawayRenderOpts {
   iconUrl?: string | null;
@@ -113,7 +71,7 @@ function actionRow(g: Giveaway, t: typeof I18N[Lang], disabled: boolean): Action
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
     new ButtonBuilder()
       .setCustomId(`gw:${g.messageId}:join`)
-      .setLabel(`${t.join} (${g.participants.length})`)
+      .setLabel(`${t.join} (${g.entries.length})`)
       .setEmoji("🎉")
       .setStyle(ButtonStyle.Primary)
       .setDisabled(disabled),
@@ -159,7 +117,7 @@ export function buildGiveawayContainer(g: Giveaway, opts: GiveawayRenderOpts = {
       [
         `🕐 **${t.draw}** <t:${endTs}:R> · <t:${endTs}:f>`,
         `👤 **${t.host}** <@${g.hostId}>`,
-        `🎟️ **${t.participants}** \`${g.participants.length}\``,
+        `🎟️ **${t.participants}** \`${g.entries.length}\``,
       ].join("\n\n"),
     ),
   );
@@ -194,10 +152,15 @@ export function buildAnnouncementContainer(g: Giveaway, opts: GiveawayRenderOpts
     .filter((i) => prizes[i])
     .map((i) => {
       const w = g.winners.find((x) => x.tier === (i + 1) as 1 | 2 | 3);
-      const who = w
-        ? `↳ <@${w.userId}>`
-        : "↳ *Pas assez de participants*\n↳ *Not enough entrants*";
-      return `${MEDALS[i]} **${prizes[i]}**\n${who}`;
+      if (!w) {
+        return `${MEDALS[i]} **${prizes[i]}**\n↳ *Pas assez de participants*\n↳ *Not enough entrants*`;
+      }
+      const entry = findEntry(g, w.userId);
+      // UID masqué : l'annonce est publique, l'UID complet reste au salon des gagnants.
+      const ident = entry?.pseudo
+        ? ` · \`${entry.pseudo}\` · UID \`${maskUid(entry.uid)}\``
+        : "";
+      return `${MEDALS[i]} **${prizes[i]}**\n↳ <@${w.userId}>${ident}`;
     });
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(`### 🏆 Résultats\n### 🏆 Results\n\n${lines.join("\n\n")}`),
@@ -207,7 +170,7 @@ export function buildAnnouncementContainer(g: Giveaway, opts: GiveawayRenderOpts
 
   container.addTextDisplayComponents(
     new TextDisplayBuilder().setContent(
-      `🎟️ **Participants** \`${g.participants.length}\`\n\n👤 **Hôte** <@${g.hostId}>`,
+      `🎟️ **Participants** \`${g.entries.length}\`\n\n👤 **Hôte** <@${g.hostId}>`,
     ),
   );
 
