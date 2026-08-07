@@ -86,9 +86,12 @@ export function findEntry(g: Giveaway, userId: string): GiveawayEntry | undefine
   return g.entries.find((e) => e.userId === userId);
 }
 
-// Un même UID Lootbar ne peut pas être joué par deux comptes Discord.
+// Un même compte Lootbar ne peut pas être joué par deux comptes Discord.
+// Le champ étant facultatif, le vide n'appartient à personne : sans ce garde-fou
+// le premier participant sans Lootbar bloquerait tous les suivants.
 export function findEntryByUid(g: Giveaway, uid: string, exceptUserId: string): GiveawayEntry | undefined {
-  const norm = uid.toLowerCase();
+  const norm = uid.trim().toLowerCase();
+  if (!norm) return undefined;
   return g.entries.find((e) => e.userId !== exceptUserId && e.uid.toLowerCase() === norm);
 }
 

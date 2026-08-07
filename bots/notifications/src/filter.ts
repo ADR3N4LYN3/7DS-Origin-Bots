@@ -16,15 +16,26 @@ export function normalize(s: string): string {
 }
 
 // Saisie humaine : « 7ds, seven deadly, nanatsu ».
+// On coupe aussi sur les sauts de ligne : coller deux lignes d'un coup dans le
+// champ Discord produisait un terme « nanatsu\n/notif preview … » qui ne matchait
+// plus rien, en silence.
 export function parseTerms(raw: string): string[] {
-  return raw
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
+  const terms: string[] = [];
+  const seen = new Set<string>();
+  for (const part of raw.split(/[,\r\n]+/)) {
+    const term = part.trim();
+    if (!term) continue;
+    const key = normalize(term);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    terms.push(term);
+  }
+  return terms;
 }
 
+// Chaque terme entre backticks : un terme mal découpé se voit au premier coup d'œil.
 export function formatTerms(terms: string[] | null | undefined): string {
-  return terms?.length ? terms.join(", ") : "—";
+  return terms?.length ? terms.map((t) => `\`${t}\``).join(" · ") : "—";
 }
 
 export function hasFilter(f: KeywordFilter): boolean {

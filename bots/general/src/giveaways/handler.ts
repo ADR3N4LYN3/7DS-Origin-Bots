@@ -52,8 +52,9 @@ export async function handleGiveawayButton(interaction: ButtonInteraction) {
   }
 
   // « Modifier mes infos », ou 1ʳᵉ inscription : le modal fait foi.
-  // Les participations d'avant le modal n'ont pas d'UID → on les traite comme neuves.
-  if (action === "edit" || !entry?.uid) {
+  // Le pseudo est le seul champ requis, donc le seul marqueur de complétude —
+  // les participations d'avant le modal n'en ont pas et repassent par là.
+  if (action === "edit" || !entry?.pseudo) {
     await interaction.showModal(buildEntryModal(messageId, lang, entry, action === "edit" ? "panel" : "card"));
     return;
   }

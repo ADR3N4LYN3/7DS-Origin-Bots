@@ -311,7 +311,7 @@ async function handleParticipants(interaction: ChatInputCommandInteraction) {
   let budget = 3900;
   let shown = 0;
   for (const e of g.entries) {
-    const line = `╸ <@${e.userId}> · \`${e.pseudo || "—"}\` · UID \`${e.uid || "—"}\``;
+    const line = `╸ <@${e.userId}> · \`${e.pseudo || "—"}\` · Lootbar \`${e.uid || "—"}\``;
     if (line.length + 1 > budget) break;
     budget -= line.length + 1;
     lines.push(line);
@@ -335,7 +335,7 @@ function csvCell(value: string): string {
 // Liste complète exploitable pour la livraison des lots.
 function participantsCsv(g: Giveaway): AttachmentBuilder {
   const rows = [
-    ["pseudo", "uid_lootbar", "discord_id", "inscrit_le"].join(","),
+    ["pseudo_en_jeu", "lootbar", "discord_id", "inscrit_le"].join(","),
     ...g.entries.map((e) =>
       [
         csvCell(e.pseudo),

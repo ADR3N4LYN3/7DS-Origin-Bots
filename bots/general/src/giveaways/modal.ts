@@ -26,17 +26,17 @@ const FIELD_UID = "uid";
 // Bornes reprises telles quelles dans les messages d'erreur (i18n.ts).
 const PSEUDO_MIN = 2;
 const PSEUDO_MAX = 32;
-// UID Lootbar : `U` + 10 chiffres (ex. U1062182404). La plage 6-14 laisse de
-// la marge sur la longueur du compteur sans accepter n'importe quoi.
-const UID_MIN = 7;
-const UID_MAX = 15;
-const UID_RE = /^U\d{6,14}$/;
+// Champ Lootbar : UID (`U1062182404`) OU pseudo, au choix du membre — et
+// facultatif : c'est Lootbar qui identifie le gagnant à la livraison.
+const LOOTBAR_MIN = 2;
+const LOOTBAR_MAX = 32;
+const UID_DIGITS_ONLY = /^\d{6,14}$/;
 
-// Espaces retirés, `u` minuscule accepté, et `U` reposé si le membre a collé
-// les chiffres seuls — les trois ratés de copier-coller qu'on voit passer.
-function normalizeUid(raw: string): string {
-  const cleaned = raw.replace(/\s+/g, "").toUpperCase();
-  return /^\d+$/.test(cleaned) ? `U${cleaned}` : cleaned;
+// Un UID collé sans son `U` reste un UID : on le repose. Tout le reste est un
+// pseudo, laissé tel quel.
+function normalizeLootbar(raw: string): string {
+  const trimmed = raw.trim().replace(/\s+/g, " ");
+  return UID_DIGITS_ONLY.test(trimmed) ? `U${trimmed}` : trimmed;
 }
 
 // D'où le modal a été ouvert : depuis la carte publique, ou depuis le récap
@@ -60,6 +60,7 @@ export function buildEntryModal(
     min: number,
     max: number,
     value: string | undefined,
+    required: boolean,
   ) => {
     const input = new TextInputBuilder()
       .setCustomId(customId)
@@ -67,7 +68,7 @@ export function buildEntryModal(
       .setPlaceholder(placeholder)
       .setMinLength(min)
       .setMaxLength(max)
-      .setRequired(true);
+      .setRequired(required);
     if (value) input.setValue(value);
     return input;
   };
@@ -80,13 +81,13 @@ export function buildEntryModal(
         .setLabel(t.pseudoLabel)
         .setDescription(t.pseudoDesc)
         .setTextInputComponent(
-          field(FIELD_PSEUDO, t.pseudoPlaceholder, PSEUDO_MIN, PSEUDO_MAX, existing?.pseudo),
+          field(FIELD_PSEUDO, t.pseudoPlaceholder, PSEUDO_MIN, PSEUDO_MAX, existing?.pseudo, true),
         ),
       new LabelBuilder()
         .setLabel(t.uidLabel)
         .setDescription(t.uidDesc)
         .setTextInputComponent(
-          field(FIELD_UID, t.uidPlaceholder, UID_MIN, UID_MAX, existing?.uid),
+          field(FIELD_UID, t.uidPlaceholder, LOOTBAR_MIN, LOOTBAR_MAX, existing?.uid, false),
         ),
     );
 }
@@ -120,28 +121,29 @@ export async function handleGiveawayModal(interaction: ModalSubmitInteraction) {
   }
 
   const pseudo = interaction.fields.getTextInputValue(FIELD_PSEUDO).trim();
-  const uid = normalizeUid(interaction.fields.getTextInputValue(FIELD_UID));
+  const uid = normalizeLootbar(interaction.fields.getTextInputValue(FIELD_UID));
 
   if (pseudo.length < PSEUDO_MIN || pseudo.length > PSEUDO_MAX) {
     await fail(t.badPseudo);
     return;
   }
-  if (uid.length < UID_MIN || uid.length > UID_MAX || !UID_RE.test(uid)) {
+  // Champ facultatif : vide passe. Renseigné, il doit rester exploitable.
+  if (uid && (uid.length < LOOTBAR_MIN || uid.length > LOOTBAR_MAX)) {
     await fail(t.badUid);
     return;
   }
-  if (findEntryByUid(g, uid, interaction.user.id)) {
+  if (uid && findEntryByUid(g, uid, interaction.user.id)) {
     await fail(t.uidTaken);
     return;
   }
 
-  const wasComplete = Boolean(findEntry(g, interaction.user.id)?.uid);
+  const wasComplete = Boolean(findEntry(g, interaction.user.id)?.pseudo);
   upsertEntry(messageId, interaction.user.id, pseudo, uid);
 
   await succeed([
     wasComplete ? t.updated : t.joined,
     `**${t.yourPseudo}** \`${pseudo}\``,
-    `**${t.yourUid}** \`${uid}\``,
+    `**${t.yourUid}** ${uid ? `\`${uid}\`` : t.notProvided}`,
   ].join("\n"));
 
   await refreshGiveawayCard(interaction.client, messageId);
@@ -154,7 +156,7 @@ export function buildEntrySummary(messageId: string, lang: Lang, entry: Giveaway
   const content = [
     t.alreadyIn,
     `**${t.yourPseudo}** \`${entry.pseudo}\``,
-    `**${t.yourUid}** \`${entry.uid}\``,
+    `**${t.yourUid}** ${entry.uid ? `\`${entry.uid}\`` : t.notProvided}`,
   ].join("\n");
 
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

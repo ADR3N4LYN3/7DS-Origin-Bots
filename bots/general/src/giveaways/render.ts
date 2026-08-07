@@ -20,10 +20,10 @@ const GREEN = 0x2ecc71;
 
 const MEDALS = ["🥇", "🥈", "🥉"] as const;
 
-// UID partiellement masqué pour les surfaces publiques (l'annonce des résultats).
-// Le salon des gagnants et la liste admin, eux, affichent l'UID complet.
-// Les 4 derniers chiffres suffisent au gagnant pour se reconnaître ; le préfixe
-// `U` reste visible parce qu'il est commun à tous les comptes Lootbar.
+// Identifiant Lootbar partiellement masqué pour les surfaces publiques (annonce
+// des résultats, reroll). Le salon des gagnants et la liste admin l'affichent en
+// clair. Les 4 derniers caractères suffisent au gagnant pour se reconnaître ; le
+// préfixe `U` reste visible, il est commun à tous les UID Lootbar.
 export function maskUid(uid: string): string {
   if (!uid) return "—";
   const KEEP = 4;
@@ -156,10 +156,13 @@ export function buildAnnouncementContainer(g: Giveaway, opts: GiveawayRenderOpts
         return `${MEDALS[i]} **${prizes[i]}**\n↳ *Pas assez de participants*\n↳ *Not enough entrants*`;
       }
       const entry = findEntry(g, w.userId);
-      // UID masqué : l'annonce est publique, l'UID complet reste au salon des gagnants.
-      const ident = entry?.pseudo
-        ? ` · \`${entry.pseudo}\` · UID \`${maskUid(entry.uid)}\``
-        : "";
+      // Lootbar masqué : l'annonce est publique, la valeur complète reste au
+      // salon des gagnants. Champ facultatif, donc souvent absent.
+      const bits = [
+        entry?.pseudo ? `\`${entry.pseudo}\`` : null,
+        entry?.uid ? `Lootbar \`${maskUid(entry.uid)}\`` : null,
+      ].filter(Boolean);
+      const ident = bits.length ? ` · ${bits.join(" · ")}` : "";
       return `${MEDALS[i]} **${prizes[i]}**\n↳ <@${w.userId}>${ident}`;
     });
   container.addTextDisplayComponents(

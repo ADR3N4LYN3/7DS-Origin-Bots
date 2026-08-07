@@ -48,7 +48,12 @@ async function grantWinnersAccess(
 
   const lines = awards.map((a) => {
     const entry = findEntry(g, a.userId);
-    const ident = entry?.pseudo ? `\n↳ \`${entry.pseudo}\` — UID Lootbar \`${entry.uid}\`` : "";
+    const bits = [
+      entry?.pseudo ? `\`${entry.pseudo}\`` : null,
+      // Champ facultatif : le dire explicitement vaut mieux qu'une ligne muette.
+      entry?.uid ? `Lootbar \`${entry.uid}\`` : "Lootbar non renseigné",
+    ].filter(Boolean);
+    const ident = entry ? `\n↳ ${bits.join(" — ")}` : "";
     return `${TIER_EMOJIS[a.tier - 1]} <@${a.userId}> — ${a.prize}` + ident;
   });
   await channel.send({
@@ -213,8 +218,12 @@ export async function rerollGiveaway(
   if (channel) {
     const prize = prizes[targetTier - 1];
     const entry = findEntry(g, newWinner);
-    // Salon public → UID masqué, comme dans l'annonce des résultats.
-    const ident = entry?.pseudo ? ` · \`${entry.pseudo}\` · UID \`${maskUid(entry.uid)}\`` : "";
+    // Salon public → Lootbar masqué, comme dans l'annonce des résultats.
+    const bits = [
+      entry?.pseudo ? `\`${entry.pseudo}\`` : null,
+      entry?.uid ? `Lootbar \`${maskUid(entry.uid)}\`` : null,
+    ].filter(Boolean);
+    const ident = bits.length ? ` · ${bits.join(" · ")}` : "";
     await channel.send({
       content: `🎲 **Reroll** ${TIER_EMOJIS[targetTier - 1]} ${prize} : <@${newWinner}>${ident}`,
       allowedMentions: { users: [newWinner] },
