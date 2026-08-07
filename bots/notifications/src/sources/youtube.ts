@@ -4,6 +4,7 @@
 export interface YouTubeVideo {
   videoId: string;
   title: string;
+  description: string; // <media:description> — porte souvent le seul indice du jeu
   url: string;
   published: string;
   thumbnail: string;
@@ -39,10 +40,12 @@ export async function fetchLatestVideos(channelId: string): Promise<YouTubeVideo
     const videoId = entry.match(/<yt:videoId>([^<]+)<\/yt:videoId>/)?.[1];
     const title = entry.match(/<title>([^<]*)<\/title>/)?.[1];
     const published = entry.match(/<published>([^<]+)<\/published>/)?.[1] ?? "";
+    const description = entry.match(/<media:description>([\s\S]*?)<\/media:description>/)?.[1] ?? "";
     if (!videoId || title === undefined) continue;
     videos.push({
       videoId,
       title: decodeXml(title),
+      description: decodeXml(description),
       url: `https://www.youtube.com/watch?v=${videoId}`,
       published,
       thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,

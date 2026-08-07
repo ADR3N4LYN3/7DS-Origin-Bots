@@ -14,9 +14,12 @@ import {
   removeSubscription,
   listSubscriptions,
   findSubscription,
+  updateSubscription,
   setState,
+  seedAnnounced,
   type Subscription,
 } from "../config/storage.js";
+import { formatTerms, hasFilter, matchesFilter, normalize, parseTerms } from "../filter.js";
 import { resolveYouTubeChannel, fetchLatestVideos } from "../sources/youtube.js";
 import { resolveTwitchUser, fetchLiveStreams } from "../sources/twitch.js";
 import { sendNotification } from "../poster.js";
@@ -84,6 +87,45 @@ export function buildNotifCommand() {
     )
     .addSubcommand((sub) =>
       sub
+        .setName("filter")
+        .setDescription("YouTube : ne poster que certaines vidéos (mots-clés)")
+        .addStringOption((opt) =>
+          opt
+            .setName("notification")
+            .setDescription("La notification à filtrer")
+            .setRequired(true)
+            .setAutocomplete(true),
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName("inclure")
+            .setDescription("Termes séparés par des virgules. Ex : 7ds, seven deadly, nanatsu")
+            .setRequired(false),
+        )
+        .addStringOption((opt) =>
+          opt
+            .setName("exclure")
+            .setDescription("Termes séparés par des virgules. Rejette la vidéo même si incluse.")
+            .setRequired(false),
+        )
+        .addBooleanOption((opt) =>
+          opt.setName("reset").setDescription("Retirer tous les filtres").setRequired(false),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName("preview")
+        .setDescription("YouTube : voir quelles vidéos récentes passeraient le filtre")
+        .addStringOption((opt) =>
+          opt
+            .setName("notification")
+            .setDescription("La notification à prévisualiser")
+            .setRequired(true)
+            .setAutocomplete(true),
+        ),
+    )
+    .addSubcommand((sub) =>
+      sub
         .setName("test")
         .setDescription("Envoyer une notification de test")
         .addStringOption((opt) =>
@@ -125,9 +167,111 @@ export async function handleNotifCommand(
       return handleRemove(interaction);
     case "list":
       return handleList(interaction);
+    case "filter":
+      return handleFilter(interaction);
+    case "preview":
+      return handlePreview(interaction);
     case "test":
       return handleTest(interaction, client, config);
   }
+}
+
+// ── Filtres par mots-clés (YouTube) ──────────────────────────────────
+
+async function handleFilter(interaction: ChatInputCommandInteraction) {
+  const id = interaction.options.getString("notification", true);
+  const sub = findSubscription(id);
+  if (!sub) {
+    await interaction.reply({ content: "❌ Notification introuvable.", flags: 64 });
+    return;
+  }
+  if (sub.platform !== "youtube") {
+    await interaction.reply({
+      content: "❌ Les filtres ne s'appliquent qu'aux notifications YouTube (Twitch annonce un live, pas une vidéo).",
+      flags: 64,
+    });
+    return;
+  }
+
+  const reset = interaction.options.getBoolean("reset") ?? false;
+  const includeRaw = interaction.options.getString("inclure");
+  const excludeRaw = interaction.options.getString("exclure");
+
+  if (!reset && includeRaw === null && excludeRaw === null) {
+    // Aucune option : on affiche l'état courant plutôt que de ne rien faire.
+    await interaction.reply({
+      content: [
+        `🔎 Filtres de **${sub.sourceName}**`,
+        `> Inclure : ${formatTerms(sub.include)}`,
+        `> Exclure : ${formatTerms(sub.exclude)}`,
+        "",
+        "Utilise `inclure:` / `exclure:` pour les régler, `reset:true` pour tout retirer.",
+      ].join("\n"),
+      flags: 64,
+    });
+    return;
+  }
+
+  const patch = reset
+    ? { include: null, exclude: null }
+    : {
+        ...(includeRaw !== null ? { include: parseTerms(includeRaw) } : {}),
+        ...(excludeRaw !== null ? { exclude: parseTerms(excludeRaw) } : {}),
+      };
+  const updated = updateSubscription(id, patch)!;
+
+  await interaction.reply({
+    content: [
+      reset
+        ? `♻️ Filtres retirés pour **${sub.sourceName}** — toutes les vidéos seront postées.`
+        : `✅ Filtres mis à jour pour **${sub.sourceName}**.`,
+      `> Inclure : ${formatTerms(updated.include)}`,
+      `> Exclure : ${formatTerms(updated.exclude)}`,
+      "",
+      `Vérifie le rendu avec \`/notif preview notification:${sub.id}\`.`,
+    ].join("\n"),
+    flags: 64,
+  });
+}
+
+async function handlePreview(interaction: ChatInputCommandInteraction) {
+  const id = interaction.options.getString("notification", true);
+  const sub = findSubscription(id);
+  if (!sub) {
+    await interaction.reply({ content: "❌ Notification introuvable.", flags: 64 });
+    return;
+  }
+  if (sub.platform !== "youtube") {
+    await interaction.reply({ content: "❌ Prévisualisation réservée à YouTube.", flags: 64 });
+    return;
+  }
+
+  await interaction.deferReply({ flags: 64 });
+
+  const videos = await fetchLatestVideos(sub.sourceId).catch(() => []);
+  if (videos.length === 0) {
+    await interaction.editReply("❌ Impossible de lire le flux de la chaîne.");
+    return;
+  }
+
+  const rows = videos.map((v) => {
+    const keep = matchesFilter(sub, v.title, v.description);
+    return `${keep ? "✅" : "🚫"} ${v.title.slice(0, 70)}`;
+  });
+  const kept = rows.filter((r) => r.startsWith("✅")).length;
+
+  const embed = new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle(`🔎 Aperçu du filtre — ${sub.sourceName}`)
+    .setDescription(rows.join("\n").slice(0, 4000))
+    .addFields(
+      { name: "Inclure", value: formatTerms(sub.include), inline: true },
+      { name: "Exclure", value: formatTerms(sub.exclude), inline: true },
+      { name: "Retenues", value: `${kept}/${videos.length}`, inline: true },
+    )
+    .setFooter({ text: "Titre + description · les 15 dernières vidéos du flux" });
+
+  await interaction.editReply({ embeds: [embed] });
 }
 
 async function handleAdd(interaction: ChatInputCommandInteraction, config: NotifConfig) {
@@ -203,7 +347,14 @@ async function handleAdd(interaction: ChatInputCommandInteraction, config: Notif
   try {
     if (platform === "youtube") {
       const videos = await fetchLatestVideos(sourceId);
-      if (videos[0]) setState(sub.id, { lastVideoId: videos[0].videoId });
+      seedAnnounced(
+        sub.id,
+        videos.map((v) => ({
+          id: v.videoId,
+          title: normalize(v.title),
+          at: Date.parse(v.published) || Date.now(),
+        })),
+      );
     } else {
       const live = await fetchLiveStreams([sourceId], config.twitchClientId, config.twitchClientSecret);
       setState(sub.id, { isLive: live.has(sourceId) });
@@ -250,7 +401,10 @@ async function handleList(interaction: ChatInputCommandInteraction) {
   const format = (s: Subscription) => {
     const icon = s.platform === "youtube" ? "📺" : "🔴";
     const ping = s.roleId ? ` · <@&${s.roleId}>` : "";
-    return `${icon} **${s.sourceName}** → <#${s.discordChannelId}>${ping}\n \`${s.id}\``;
+    const filter = hasFilter(s)
+      ? `\n 🔎 inclure: ${formatTerms(s.include)} · exclure: ${formatTerms(s.exclude)}`
+      : "";
+    return `${icon} **${s.sourceName}** → <#${s.discordChannelId}>${ping}\n \`${s.id}\`${filter}`;
   };
 
   const youtube = subs.filter((s) => s.platform === "youtube");

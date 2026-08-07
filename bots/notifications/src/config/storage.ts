@@ -16,13 +16,28 @@ export interface Subscription {
   discordChannelId: string; // where the notification is posted
   roleId: string | null; // role to ping (optional)
   message: string | null; // custom message template (optional)
+  include?: string[] | null; // youtube: ne poster que si un de ces termes matche
+  exclude?: string[] | null; // youtube: ne jamais poster si un de ces termes matche
   createdAt: number;
 }
 
-export interface SourceState {
-  lastVideoId?: string; // youtube: most recent video already announced
-  isLive?: boolean; // twitch: whether the channel was live at last check
+// Une vidéo déjà traitée — postée OU volontairement sautée (filtre, doublon).
+// Le titre est stocké normalisé : YouTube publie parfois deux entrées distinctes
+// pour le même live (deux videoId, même titre), et seul le titre les rapproche.
+export interface AnnouncedEntry {
+  id: string;
+  title: string;
+  at: number;
 }
+
+export interface SourceState {
+  lastVideoId?: string; // youtube: dernière vidéo vue (informatif depuis `announced`)
+  isLive?: boolean; // twitch: whether the channel was live at last check
+  announced?: AnnouncedEntry[]; // youtube: historique borné, absent = jamais amorcé
+}
+
+// Le flux RSS ne renvoie que 15 entrées : 60 couvre largement l'historique utile.
+const ANNOUNCED_MAX = 60;
 
 function ensureDir() {
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
@@ -73,6 +88,15 @@ export function findSubscription(id: string): Subscription | undefined {
   return listSubscriptions().find((s) => s.id === id);
 }
 
+export function updateSubscription(id: string, patch: Partial<Subscription>): Subscription | undefined {
+  const data = listSubscriptions();
+  const idx = data.findIndex((s) => s.id === id);
+  if (idx < 0) return undefined;
+  data[idx] = { ...data[idx], ...patch };
+  saveSubs(data);
+  return data[idx];
+}
+
 // ── Per-source state (what has already been announced) ───────────────
 
 let stateCache: Record<string, SourceState> | null = null;
@@ -100,5 +124,34 @@ export function getState(id: string): SourceState {
 export function setState(id: string, patch: Partial<SourceState>) {
   const state = loadState();
   state[id] = { ...(state[id] ?? {}), ...patch };
+  saveState(state);
+}
+
+/**
+ * Marque une vidéo comme traitée et persiste immédiatement.
+ *
+ * Appelé AVANT l'envoi Discord : Node étant mono-thread, l'écriture synchrone
+ * garantit que deux cycles de polling qui se chevauchent ne peuvent pas poster
+ * la même vidéo deux fois.
+ */
+export function markAnnounced(subId: string, entry: AnnouncedEntry) {
+  const state = loadState();
+  const current = state[subId] ?? {};
+  const announced = [entry, ...(current.announced ?? []).filter((e) => e.id !== entry.id)].slice(
+    0,
+    ANNOUNCED_MAX,
+  );
+  state[subId] = { ...current, announced, lastVideoId: entry.id };
+  saveState(state);
+}
+
+/** Amorçage : tout le flux courant est enregistré comme vu, sans rien annoncer. */
+export function seedAnnounced(subId: string, entries: AnnouncedEntry[]) {
+  const state = loadState();
+  state[subId] = {
+    ...(state[subId] ?? {}),
+    announced: entries.slice(0, ANNOUNCED_MAX),
+    lastVideoId: entries[0]?.id,
+  };
   saveState(state);
 }
