@@ -19,7 +19,14 @@ import {
   seedAnnounced,
   type Subscription,
 } from "../config/storage.js";
-import { formatTerms, hasFilter, matchesFilter, normalize, parseTerms } from "../filter.js";
+import {
+  formatTerms,
+  hasFilter,
+  isDuplicateTitle,
+  matchesFilter,
+  normalize,
+  parseTerms,
+} from "../filter.js";
 import { resolveYouTubeChannel, fetchLatestVideos } from "../sources/youtube.js";
 import { resolveTwitchUser, fetchLiveStreams } from "../sources/twitch.js";
 import { sendNotification } from "../poster.js";
@@ -254,11 +261,25 @@ async function handlePreview(interaction: ChatInputCommandInteraction) {
     return;
   }
 
-  const rows = videos.map((v) => {
-    const keep = matchesFilter(sub, v.title, v.description);
-    return `${keep ? "✅" : "🚫"} ${v.title.slice(0, 70)}`;
-  });
-  const kept = rows.filter((r) => r.startsWith("✅")).length;
+  // Rejeu chronologique : la dédup par titre a besoin de l'historique, donc du
+  // plus ancien au plus récent. La règle d'âge n'est pas rejouée — sur un
+  // historique elle sortirait « trop vieux » partout sans rien dire du futur.
+  const marks = new Map<string, string>();
+  const history: { title: string; at: number }[] = [];
+  for (const v of [...videos].reverse()) {
+    const at = Date.parse(v.published) || Date.now();
+    const mark = !matchesFilter(sub, v.title, v.description)
+      ? "🚫"
+      : isDuplicateTitle(v.title, at, history)
+        ? "♻️"
+        : "✅";
+    history.unshift({ title: normalize(v.title), at });
+    marks.set(v.videoId, mark);
+  }
+
+  const rows = videos.map((v) => `${marks.get(v.videoId)} ${v.title.slice(0, 70)}`);
+  const kept = [...marks.values()].filter((m) => m === "✅").length;
+  const dupes = [...marks.values()].filter((m) => m === "♻️").length;
 
   const embed = new EmbedBuilder()
     .setColor(0x5865f2)
@@ -267,9 +288,13 @@ async function handlePreview(interaction: ChatInputCommandInteraction) {
     .addFields(
       { name: "Inclure", value: formatTerms(sub.include), inline: true },
       { name: "Exclure", value: formatTerms(sub.exclude), inline: true },
-      { name: "Retenues", value: `${kept}/${videos.length}`, inline: true },
+      { name: "Postées", value: `${kept}/${videos.length}`, inline: true },
     )
-    .setFooter({ text: "Titre + description · les 15 dernières vidéos du flux" });
+    .setFooter({
+      text: dupes
+        ? `Titre + description · ✅ postée · 🚫 filtrée · ♻️ doublon de titre (${dupes})`
+        : "Titre + description · ✅ postée · 🚫 filtrée",
+    });
 
   await interaction.editReply({ embeds: [embed] });
 }

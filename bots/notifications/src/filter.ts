@@ -76,9 +76,20 @@ export function skipReason(
 ): SkipReason | null {
   if (now - publishedAt > MAX_AGE_MS) return "too old";
   if (!matchesFilter(filter, video.title, video.description)) return "filtered out";
-  const title = normalize(video.title);
-  if (history.some((e) => e.title === title && now - e.at < TITLE_DEDUPE_MS)) {
-    return "duplicate title";
-  }
+  if (isDuplicateTitle(video.title, publishedAt, history)) return "duplicate title";
   return null;
+}
+
+/**
+ * Deux entrées de même titre publiées à moins de 48 h l'une de l'autre.
+ * On compare les dates de PUBLICATION, pas l'ancienneté vue de maintenant :
+ * c'est l'écart entre les deux vidéos qui trahit le live posté en double.
+ */
+export function isDuplicateTitle(
+  rawTitle: string,
+  publishedAt: number,
+  history: { title: string; at: number }[],
+): boolean {
+  const title = normalize(rawTitle);
+  return history.some((e) => e.title === title && Math.abs(publishedAt - e.at) < TITLE_DEDUPE_MS);
 }
