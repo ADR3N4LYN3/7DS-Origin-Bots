@@ -3,9 +3,19 @@
 #
 # Remplace le module `pm2-logrotate`, retiré le 2026-08-13 pour deux raisons :
 #
-#   1. Il tirait 108 paquets npm pour faire tourner des fichiers texte, sur une
-#      machine qui n'a volontairement même pas npm (node + pnpm seulement).
-#      `pm2 install` échouait d'ailleurs faute de npm.
+#   1. Il tirait 108 paquets npm pour faire tourner des fichiers texte. L'audit
+#      du lot n'a rassuré que sur l'instant : aucun hook exécuté à l'installation,
+#      108/108 depuis registry.npmjs.org avec empreinte sha512, aucune des
+#      versions compromises de 2025. Rien ne dit ce que sera la prochaine mise à
+#      jour d'un de ces 108.
+#
+#      ⚠ Correction d'une affirmation fausse du commit 2ce12bf : cette machine
+#      A npm — en 11.6.2, sous nvm (~/.nvm/versions/node/v22.16.0/bin). Ce qui
+#      est vrai est plus étroit : nvm n'est pas dans le PATH d'un shell NON
+#      INTERACTIF, celui d'un `ssh <hôte> <commande>`, donc `pm2 install` ne le
+#      trouvait pas depuis là. C'était un PATH, pas une absence. Le shell de
+#      connexion voit /usr/bin/node v20.19.2, nvm porte v22.16.0 : deux node
+#      cohabitent, et la crontab met explicitement nvm en tête.
 #   2. Son option `compress` est morte en 3.0.0 : pmx passe la config dans
 #      `Autocast`, qui transforme la chaîne "true" en booléen `true`, et le
 #      `parseBool` du module ne teste QUE les chaînes 'true'/'false' — un
