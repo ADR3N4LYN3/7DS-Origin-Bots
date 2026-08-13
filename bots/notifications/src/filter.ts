@@ -42,11 +42,33 @@ export function hasFilter(f: KeywordFilter): boolean {
   return Boolean(f.include?.length || f.exclude?.length);
 }
 
+// Une URL n'est pas du contenu : c'est une signature. Le bloc de liens d'une
+// description YouTube (« My Website! », Discord, sponsors) est identique sur
+// TOUTES les vidéos de la chaîne, quel que soit le jeu.
+//
+// Vécu le 2026-08-13 : TapScreen Gaming met `https://7dsorigin.app/en` dans ce
+// bloc. « 7dsorigin.app » contient « 7ds », donc le filtre `7ds` matchait ses
+// vidéos JoJo — et aurait matché les suivantes, indéfiniment. Ce n'était pas un
+// raté ponctuel mais un OUI permanent sur la chaîne entière.
+//
+// Retirer les URLs avant la comparaison enlève exactement cette cause sans
+// toucher au reste : les vraies vidéos 7DS de la même chaîne matchent sur du
+// texte rédigé (« seven deadly » dans leur description), pas sur un lien.
+const URL_RE = /\b(?:https?:\/\/|www\.)\S+/gi;
+
+export function stripUrls(s: string): string {
+  return s.replace(URL_RE, " ");
+}
+
 /**
  * `exclude` l'emporte toujours ; `include` vide laisse tout passer.
+ *
+ * Les URLs sont retirées des deux côtés de la comparaison (cf. `stripUrls`) —
+ * un terme d'inclusion ne peut donc plus être satisfait par un nom de domaine.
+ * Corollaire assumé : on ne peut pas filtrer SUR une URL.
  */
 export function matchesFilter(f: KeywordFilter, ...fields: string[]): boolean {
-  const hay = normalize(fields.join("\n"));
+  const hay = normalize(stripUrls(fields.join("\n")));
   const exc = (f.exclude ?? []).map(normalize).filter(Boolean);
   if (exc.some((t) => hay.includes(t))) return false;
 
